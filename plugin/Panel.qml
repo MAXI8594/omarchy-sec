@@ -6,8 +6,8 @@ import qs.Ui
 
 Panel {
   id: root
-  moduleName: "io.github.maxi8594.omarchy-wazuh"
-  ipcTarget: "io.github.maxi8594.omarchy-wazuh"
+  moduleName: "io.github.maxi8594.omarchy-sec"
+  ipcTarget: "io.github.maxi8594.omarchy-sec"
   manageIpc: false
 
   property var anchorItem: null

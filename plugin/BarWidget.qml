@@ -5,7 +5,7 @@ import "Model.js" as Model
 
 BarWidget {
   id: root
-  moduleName: "io.github.maxi8594.omarchy-wazuh"
+  moduleName: "io.github.maxi8594.omarchy-sec"
 
   // Contrato de ciclo de vida exigido por Quattro / Omarchy Shell
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
@@ -57,7 +57,7 @@ BarWidget {
     active: service.isProtected
     useActiveColor: true
     activeColor: service.statusColor
-    tooltipText: "Wazuh EDR: " + service.statusText
+    tooltipText: "Omarchy Sec: " + service.statusText
 
     onPressed: function(b) {
       if (b === Qt.MiddleButton) service.openDashboard()

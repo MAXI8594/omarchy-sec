@@ -48,7 +48,7 @@ Item {
   }
 
   function testIncident() {
-    Quickshell.execDetached(["omarchy-security-incident", "12", "Prueba de Respuesta a Incidentes", "100201", "127.0.0.1", "/tmp/test.sh"])
+    Quickshell.execDetached(["omarchy-sec-incident", "12", "Prueba de Respuesta a Incidentes", "100201", "127.0.0.1", "/tmp/test.sh"])
   }
 
   function restartWazuhAgent() {
@@ -58,7 +58,7 @@ Item {
 
   function refresh() {
     if (detectProcess.running) return
-    detectProcess.command = ["omarchy-security-detect"]
+    detectProcess.command = ["omarchy-sec-detect"]
     detectProcess.running = true
   }
 

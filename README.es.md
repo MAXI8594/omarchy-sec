@@ -1,4 +1,4 @@
-# 🛡️ Suite Universal de Seguridad para Omarchy (EDR/XDR Agnóstico y Respuesta con IA)
+# 🛡️ Omarchy Sec (EDR/XDR Agnóstico y Respuesta con IA)
 
 [![Omarchy Compatible](https://img.shields.io/badge/Omarchy-4.0+-purple.svg)](https://omarchy.org)
 [![Agnostic EDR](https://img.shields.io/badge/EDR-Wazuh%20|%20Falcon%20|%20Cortex%20|%20Defender%20|%20eBPF-blue.svg)](#-soporte-agnóstico-de-sensores-edrxdr)
@@ -22,7 +22,7 @@ Plataforma empresarial de **Seguridad de Endpoint Agnóstica** con **Respuesta A
 
 ## 🔍 Soporte Agnóstico de Sensores EDR/XDR
 
-El motor de detección inteligente (`bin/omarchy-security-detect`) identifica las capas de seguridad activas:
+El motor de detección inteligente (`bin/omarchy-sec-detect`) identifica las capas de seguridad activas:
 
 | Sensor de Seguridad | Proceso / Servicio | Telemetría Aportada |
 | :--- | :--- | :--- |

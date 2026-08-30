@@ -1,4 +1,4 @@
-# 🛡️ Omarchy Universal Security Suite (Agnostic EDR/XDR & Autonomous AI Responder)
+# 🛡️ Omarchy Sec (Agnostic EDR/XDR & Autonomous AI Responder)
 
 [![Omarchy Compatible](https://img.shields.io/badge/Omarchy-4.0+-purple.svg)](https://omarchy.org)
 [![Agnostic EDR](https://img.shields.io/badge/EDR-Wazuh%20|%20Falcon%20|%20Cortex%20|%20Defender%20|%20eBPF-blue.svg)](#-agnostic-edrxdr-sensor-support)
@@ -22,7 +22,7 @@ An enterprise-grade, **Agnostic Endpoint Security Platform** and **Autonomous AI
 
 ## 🔍 Agnostic EDR/XDR Sensor Support
 
-The suite includes an intelligent detection engine (`bin/omarchy-security-detect`) that monitors active protection layers:
+The suite includes an intelligent detection engine (`bin/omarchy-sec-detect`) that monitors active protection layers:
 
 | Security Sensor | Backend Process / Service | Telemetry Provided |
 | :--- | :--- | :--- |
@@ -41,7 +41,7 @@ The suite includes an intelligent detection engine (`bin/omarchy-security-detect
 ```
                       ┌──────────────────────────────────────────────┐
                       │    SECURITY STATUS & MULTI-SENSOR ENGINE     │
-                      │       (`bin/omarchy-security-detect`)        │
+                      │       (`bin/omarchy-sec-detect`)        │
                       └──────────────────────┬───────────────────────┘
                                              │
                                              ▼
@@ -60,7 +60,7 @@ The suite includes an intelligent detection engine (`bin/omarchy-security-detect
               ▼
 ┌────────────────────────────────────────────────────────────────────┐
 │              AUTONOMOUS AI INCIDENT RESPONDER                      │
-│             (`bin/omarchy-security-incident`)                      │
+│             (`bin/omarchy-sec-incident`)                      │
 │   Floating Terminal • Multi-Agent Fallback (claude/gemini/codex)   │
 └────────────────────────────────────────────────────────────────────┘
 ```

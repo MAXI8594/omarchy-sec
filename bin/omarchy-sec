@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# ==============================================================================
+# Omarchy Sec - Unified Security & EDR CLI
+# ==============================================================================
+
+set -euo pipefail
+
+cmd="${1:-status}"
+shift || true
+
+case "$cmd" in
+status)
+  omarchy-sec-detect
+  ;;
+incident)
+  omarchy-sec-incident "$@"
+  ;;
+dashboard|soc)
+  xdg-open "https://localhost:9001" 2>/dev/null || echo "Abre https://localhost:9001 en tu navegador."
+  ;;
+test)
+  "$(dirname "$(readlink -f "$0")")/../tests/run_tests.sh"
+  ;;
+setup)
+  "$(dirname "$(readlink -f "$0")")/../setup.sh"
+  ;;
+help|--help|-h)
+  echo "Uso: omarchy-sec <comando>"
+  echo ""
+  echo "Comandos:"
+  echo "  status      Muestra el estado de protección y sensores EDR (JSON)"
+  echo "  incident    Dispara la respuesta a incidentes con IA"
+  echo "  dashboard   Abre la consola web del SOC (:9001)"
+  echo "  setup       Inicia el asistente interactivo de instalación"
+  echo "  test        Ejecuta el pipeline de pruebas DevSecOps (SAST, IaC, Secrets)"
+  ;;
+*)
+  echo "Comando desconocido: $cmd. Ejecuta 'omarchy-sec help' para ver la ayuda."
+  exit 1
+  ;;
+esac

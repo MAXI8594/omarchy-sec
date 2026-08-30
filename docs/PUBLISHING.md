@@ -6,21 +6,21 @@ This plugin is 100% compliant with the official **Omarchy Quattro Plugin Develop
 
 ```bash
 # Validate manifest and repository layout
-omarchy plugin validate ~/.config/omarchy/plugins/io.github.maxi8594.omarchy-wazuh
+omarchy plugin validate ~/.config/omarchy/plugins/io.github.maxi8594.omarchy-sec
 
 # Test shell lifecycle routing
-omarchy-shell shell summon "io.github.maxi8594.omarchy-wazuh" '{}'
-omarchy-shell shell hide "io.github.maxi8594.omarchy-wazuh"
+omarchy-shell shell summon "io.github.maxi8594.omarchy-sec" '{}'
+omarchy-shell shell hide "io.github.maxi8594.omarchy-sec"
 ```
 
 ## 2. Publish to GitHub
 
-1. Create a public repository on GitHub (e.g. `https://github.com/maxi8594/omarchy-wazuh-security` or `omarchy-plugin-wazuh`).
+1. Create a public repository on GitHub (e.g. `https://github.com/maxi8594/omarchy-sec` or `omarchy-plugin-wazuh`).
 2. Push this repository:
    ```bash
    git init
    git add .
-   git commit -m "feat: initial release of Omarchy Wazuh Security Suite"
+   git commit -m "feat: initial release of Omarchy Sec"
    git branch -M main
    git remote add origin https://github.com/<your-username>/<repo-name>.git
    git push -u origin main
@@ -32,7 +32,7 @@ Submit the plugin using the official Omarchy Marketplace Issue template:
 👉 [**Submit Plugin to Omarchy Marketplace**](https://github.com/omacom/omarchy-plugin-marketplace/issues/new?template=submit-plugin.yml)
 
 ### Submission Form Fields:
-* **Plugin ID:** `io.github.maxi8594.omarchy-wazuh`
+* **Plugin ID:** `io.github.maxi8594.omarchy-sec`
 * **Plugin Name:** `Wazuh Security & EDR`
 * **Repository URL:** `https://github.com/<your-username>/<repo-name>`
 * **Category:** `Security` / `System`

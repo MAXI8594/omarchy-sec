@@ -23,7 +23,7 @@ echo ""
 
 # 1. Escaneo de sensores existentes
 echo -e "\e[1;33m[*] Verificando sensores de seguridad existentes en el sistema...\e[0m"
-detection_json=$("$BASE_DIR/bin/omarchy-security-detect")
+detection_json=$("$BASE_DIR/bin/omarchy-sec-detect")
 primary_sensor=$(echo "$detection_json" | jq -r '.primary')
 active_count=$(echo "$detection_json" | jq -r '.activeCount')
 

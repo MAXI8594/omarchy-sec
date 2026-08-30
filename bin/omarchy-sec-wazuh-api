@@ -14,15 +14,21 @@ TOKEN_CACHE="/tmp/.wazuh_api_token"
 
 get_token() {
   if [ -f "$TOKEN_CACHE" ]; then
-    # Verificar si el token tiene menos de 10 minutos
-    if [ $(($(date +%s) - $(stat -c %Y "$TOKEN_CACHE" 2>/dev/null || echo 0))) -lt 600 ]; then
+    # Check if cached token is less than 10 minutes old
+    local cache_age
+    cache_age=$(($(date +%s) - $(stat -c %Y "$TOKEN_CACHE" 2>/dev/null || echo 0)))
+    if [ "$cache_age" -lt 600 ]; then
       cat "$TOKEN_CACHE"
       return 0
     fi
   fi
 
+  local auth_response
+  auth_response=$(curl -k -s -u "${API_USER}:${API_PASS}" -X POST "${API_URL}/security/user/authenticate" 2>/dev/null || true)
+  
   local token
-  token=$(curl -k -s -u "${API_USER}:${API_PASS}" -X POST "${API_URL}/security/user/authenticate" 2>/dev/null | jq -r '.data.token // empty')
+  token=$(echo "$auth_response" | jq -r '.data.token // empty' 2>/dev/null || true)
+  
   if [ -n "$token" ]; then
     echo "$token" > "$TOKEN_CACHE"
     chmod 600 "$TOKEN_CACHE"
@@ -39,7 +45,9 @@ api_req() {
     echo "{\"error\": 1, \"message\": \"No se pudo autenticar con la API de Wazuh en $API_URL\"}"
     return 1
   }
-  curl -k -s -H "Authorization: Bearer $token" -X GET "${API_URL}${endpoint}" 2>/dev/null
+  local res
+  res=$(curl -k -s -H "Authorization: Bearer $token" -X GET "${API_URL}${endpoint}" 2>/dev/null || true)
+  echo "$res"
 }
 
 subcmd="${1:-summary}"
@@ -50,25 +58,29 @@ token)
   get_token
   ;;
 agents)
-  api_req "/agents" | jq .
+  raw_agents=$(api_req "/agents")
+  echo "$raw_agents" | jq .
   ;;
 status|manager)
-  api_req "/manager/status" | jq .
+  raw_status=$(api_req "/manager/status")
+  echo "$raw_status" | jq .
   ;;
 sca)
   agent_id="${1:-001}"
-  api_req "/sca/${agent_id}" | jq .
+  raw_sca=$(api_req "/sca/${agent_id}")
+  echo "$raw_sca" | jq .
   ;;
 syscheck|fim)
   agent_id="${1:-001}"
-  api_req "/syscheck/${agent_id}" | jq .
+  raw_fim=$(api_req "/syscheck/${agent_id}")
+  echo "$raw_fim" | jq .
   ;;
 alerts)
   limit="${1:-10}"
   min_level="${2:-0}"
   if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "$CONTAINER_NAME"; then
-    docker exec -i "$CONTAINER_NAME" tail -n 100 /var/ossec/logs/alerts/alerts.json 2>/dev/null | \
-      jq -s --argjson min "$min_level" --argjson lim "$limit" \
+    raw_alerts=$(docker exec -i "$CONTAINER_NAME" tail -n 100 /var/ossec/logs/alerts/alerts.json 2>/dev/null || echo "")
+    echo "$raw_alerts" | jq -s --argjson min "$min_level" --argjson lim "$limit" \
       'map(select((.rule.level // 0) >= $min)) | reverse | .[:$lim]'
   else
     echo "[]"
@@ -78,8 +90,8 @@ summary)
   agents_json=$(api_req "/agents" 2>/dev/null || echo "{}")
   recent_alerts="[]"
   if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "$CONTAINER_NAME"; then
-    recent_alerts=$(docker exec -i "$CONTAINER_NAME" tail -n 50 /var/ossec/logs/alerts/alerts.json 2>/dev/null | \
-      jq -s 'reverse | .[:5] | map({level: .rule.level, description: .rule.description, id: .rule.id, timestamp: .timestamp, file: .syscheck.path})' 2>/dev/null || echo "[]")
+    raw_tail=$(docker exec -i "$CONTAINER_NAME" tail -n 50 /var/ossec/logs/alerts/alerts.json 2>/dev/null || echo "")
+    recent_alerts=$(echo "$raw_tail" | jq -s 'reverse | .[:5] | map({level: .rule.level, description: .rule.description, id: .rule.id, timestamp: .timestamp, file: .syscheck.path})' 2>/dev/null || echo "[]")
   fi
 
   cat <<JSON_SUM
@@ -93,7 +105,8 @@ JSON_SUM
   ;;
 query)
   endpoint="${1:?Debe especificar el endpoint, ej: /agents}"
-  api_req "$endpoint" | jq .
+  raw_q=$(api_req "$endpoint")
+  echo "$raw_q" | jq .
   ;;
 help|--help|-h)
   echo "Uso: omarchy-sec-wazuh-api <comando>"

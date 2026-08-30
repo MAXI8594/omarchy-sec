@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# ==============================================================================
+# Omarchy Wazuh Security Alert Streaming Watcher
+# ==============================================================================
+
+MIN_NOTIFY_LEVEL="${MIN_NOTIFY_LEVEL:-7}"    # Level >= 7 (Medium) -> Desktop Notification
+MIN_AGENT_LEVEL="${MIN_AGENT_LEVEL:-10}"     # Level >= 10 (High/Critical) -> AI Agent Trigger
+CONTAINER_NAME="single-node-wazuh.manager-1"
+
+echo "=========================================================="
+echo " Starting Omarchy Wazuh Security Alert Watcher Daemon"
+echo " Min Notify Level: $MIN_NOTIFY_LEVEL | Min Agent Level: $MIN_AGENT_LEVEL"
+echo "=========================================================="
+
+while true; do
+  # Verificar si el contenedor manager de Docker esta corriendo
+  if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+    echo "[!] Contenedor $CONTAINER_NAME no detectado. Reintentando en 10s..."
+    sleep 10
+    continue
+  fi
+
+  echo "[*] Conectado a $CONTAINER_NAME. Escuchando stream de alertas..."
+
+  # Escuchar el stream de alertas en tiempo real
+  docker exec -i "$CONTAINER_NAME" tail -F -n 0 /var/ossec/logs/alerts/alerts.json 2>/dev/null | while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    
+    level=$(echo "$line" | jq -r '.rule.level // 0' 2>/dev/null || echo 0)
+    
+    if [ "$level" -ge "$MIN_NOTIFY_LEVEL" ]; then
+      rule_id=$(echo "$line" | jq -r '.rule.id // "N/A"' 2>/dev/null)
+      desc=$(echo "$line" | jq -r '.rule.description // "Evento de seguridad detectado"' 2>/dev/null)
+      src_ip=$(echo "$line" | jq -r '.data.srcip // .srcip // "Localhost"' 2>/dev/null)
+      file_path=$(echo "$line" | jq -r '.syscheck.path // .data.file // "N/A"' 2>/dev/null)
+      
+      urgency="$([ "$level" -ge 10 ] && echo "critical" || echo "normal")"
+      
+      # Notificacion de escritorio en Omarchy
+      notify-send -u "$urgency" \
+        -a "Wazuh EDR" -i security-high \
+        "🚨 Alerta de Seguridad (Nivel $level)" \
+        "$desc\nRegla: $rule_id | IP: $src_ip" 2>/dev/null || true
+        
+      # Si la severidad es Alta o Critica (>= 10), disparar diagnostico automatico con IA
+      if [ "$level" -ge "$MIN_AGENT_LEVEL" ]; then
+        ~/.local/bin/omarchy-security-incident "$level" "$desc" "$rule_id" "$src_ip" "$file_path" &
+      fi
+    fi
+  done
+
+  echo "[!] El stream de alertas se cerro. Reconectando en 5s..."
+  sleep 5
+done

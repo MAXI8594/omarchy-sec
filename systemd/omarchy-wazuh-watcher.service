@@ -1,0 +1,12 @@
+[Unit]
+Description=Omarchy Wazuh EDR Security Alert & Agent Bridge
+After=docker.service graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/omarchy-wazuh-watcher
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

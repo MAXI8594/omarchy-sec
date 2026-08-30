@@ -1,0 +1,44 @@
+name: Security & Quality Pipeline (SAST, IaC, Secrets, SCA)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  security-audit:
+    name: DevSecOps Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run ShellCheck (SAST)
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './bin'
+
+      - name: Run Gitleaks (Secrets Scanning)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Semgrep SAST
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/secrets
+            p/bash
+
+      - name: Run Trivy IaC Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          hide-progress: true
+          format: 'table'
+          severity: 'HIGH,CRITICAL'
+          scan-ref: 'docker/single-node'

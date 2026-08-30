@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.maxi8594.omarchy-wazuh",
+  "name": "Wazuh Security",
+  "version": "1.0.0",
+  "author": "Maximiliano Olivera",
+  "license": "MIT",
+  "description": "Monitor de estado en tiempo real para Wazuh EDR & XDR, alertas de seguridad y acceso al SOC Dashboard.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Wazuh EDR",
+    "description": "Estado de protección de Wazuh y alertas activas.",
+    "category": "Security",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "dashboardUrl": "https://localhost:9001",
+      "refreshIntervalSec": 5,
+      "enableNotifications": true
+    },
+    "schema": [
+      {
+        "key": "dashboardUrl",
+        "type": "string",
+        "label": "URL del SOC Dashboard",
+        "defaultValue": "https://localhost:9001"
+      },
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Intervalo de refresco (s)",
+        "min": 2,
+        "max": 60,
+        "step": 1,
+        "defaultValue": 5
+      },
+      {
+        "key": "enableNotifications",
+        "type": "boolean",
+        "label": "Notificaciones de escritorio",
+        "defaultValue": true
+      }
+    ]
+  }
+}

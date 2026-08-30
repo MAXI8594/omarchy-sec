@@ -1,0 +1,14 @@
+# Logs and temp files
+*.log
+*.tmp
+.DS_Store
+scratch/
+
+# Wazuh Generated Certificates & Local Data (Should be generated on host)
+docker/single-node/config/wazuh_indexer_ssl_certs/
+docker/single-node/config/wazuh_dashboard_ssl_certs/
+docker/single-node/wazuh-certificates/
+docker/single-node/wazuh-certs-tool.sh
+
+# User-specific cache
+.cache/

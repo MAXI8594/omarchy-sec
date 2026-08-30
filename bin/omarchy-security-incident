@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# ==============================================================================
+# Omarchy Security Incident Dispatcher & AI Responder
+# ==============================================================================
+# Usage:
+#   omarchy-security-incident <level> <description> <rule_id> <src_ip> <file_path>
+# ==============================================================================
+
+set -euo pipefail
+
+LEVEL="${1:-10}"
+DESC="${2:-Actividad sospechosa o amenaza detectada en el endpoint}"
+RULE_ID="${3:-N/A}"
+SRC_IP="${4:-127.0.0.1}"
+FILE_PATH="${5:-N/A}"
+TIMESTAMP=$(date -Iseconds)
+
+# 1. Enviar notificacion de escritorio visual e interactiva
+if command -v notify-send >/dev/null 2>&1; then
+  notify-send -u critical -a "Wazuh EDR" -i security-high \
+    "🚨 ALERTA EDR (Nivel $LEVEL)" \
+    "$DESC\nRegla: $RULE_ID | IP: $SRC_IP\nArchivo: $FILE_PATH" 2>/dev/null || true
+fi
+
+# 2. Construir el prompt forense estructurado
+PROMPT=$(cat <<PROMPT_EOF
+🚨 INCIDENTE DE SEGURIDAD DETECTADO POR WAZUH EDR 🚨
+
+=======================================================
+TELEMETRÍA DEL EVENTO
+=======================================================
+• Severidad: Nivel $LEVEL (Escala Wazuh 1-15)
+• Regla Disparada: $RULE_ID
+• Descripción: $DESC
+• Origen / Dirección IP: $SRC_IP
+• Archivo / Proceso afectado: $FILE_PATH
+• Timestamp: $TIMESTAMP
+• Hostname: $(hostname)
+
+=======================================================
+MISIÓN DEL ANALISTA DE SEGURIDAD / IR
+=======================================================
+Actúa como Security Analyst & Incident Responder en esta estación Omarchy (Arch Linux):
+1. [INVESTIGACIÓN]: Verifica el origen del evento (procesos vivos con ps/pgrep/pidof, sockets de red con ss/lsof, y logs en journalctl o /var/ossec/logs/alerts/alerts.log).
+2. [EVALUACIÓN]: Determina si se trata de un falso positivo o de una amenaza real (inyección, reverse shell, modificación de dotfiles/PAM, ransomware, binario en /tmp).
+3. [CONTENCIÓN]: Si es una amenaza activa, proporciona y ejecuta los pasos de contención recomendados (aislar IP con ufw/nftables, terminar proceso con kill, restaurar archivo desde snapshot de Snapper/Btrfs).
+4. [PREVENCIÓN]: Resume lo sucedido y recomienda medidas de endurecimiento (hardening) preventivo.
+PROMPT_EOF
+)
+
+# 3. Lanzar terminal interactivo con soporte de fallback de agentes
+exec omarchy-launch-terminal -e bash -c "
+echo -e '\e[1;31m======================================================================\e[0m'
+echo -e '\e[1;31m 🚨 WAZUH EDR: INCIDENTE DE SEGURIDAD DETECTADO (Nivel $LEVEL) 🚨 \e[0m'
+echo -e '\e[1;31m======================================================================\e[0m'
+echo -e 'Regla: \e[1;36m$RULE_ID\e[0m | Origen: \e[1;33m$SRC_IP\e[0m | Timestamp: $TIMESTAMP'
+echo -e 'Descripción: \e[1;37m$DESC\e[0m'
+echo -e 'Afectado: \e[1;35m$FILE_PATH\e[0m\n'
+echo -e '\e[1;32mIniciando Agente de IA para investigación y contención...\e[0m\n'
+
+# Intentar agente por defecto de Omarchy; si falla (por cuota o error), ofrecer agentes alternativos
+if ! omarchy-agent --prompt '$PROMPT'; then
+  echo ''
+  echo -e '\e[1;33m[!] El agente por defecto no pudo completar la sesión (posible límite de cuota).\e[0m'
+  echo -e '¿Deseas intentar con otro agente disponible? (gemini / agy / codex / opencode)'
+  echo -e 'Comando sugerido: \e[1;32magy --prompt \"...\e[0m'
+fi
+
+echo ''
+echo -e '\e[1;34m======================================================================\e[0m'
+echo -e '\e[1;34m Sesión de análisis forense finalizada.                               \e[0m'
+echo -e '\e[1;34m======================================================================\e[0m'
+read -p 'Presiona ENTER para cerrar esta ventana...'
+"

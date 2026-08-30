@@ -1,0 +1,152 @@
+#!/bin/bash
+
+# ==============================================================================
+# Omarchy Agnostic EDR/XDR & Endpoint Security Sensor Detection Engine
+# ==============================================================================
+# Detects: Wazuh, CrowdStrike Falcon, Cortex XDR, SentinelOne, Defender, Falco, Auditd
+# Output: Machine-readable JSON
+# ==============================================================================
+
+set -euo pipefail
+
+# 1. Wazuh
+wazuh_agent="inactive"
+if systemctl is-active wazuh-agent >/dev/null 2>&1; then
+  wazuh_agent="active"
+fi
+
+wazuh_manager="inactive"
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q 'wazuh.manager'; then
+  wazuh_manager="active"
+fi
+
+# 2. CrowdStrike Falcon
+falcon="inactive"
+if systemctl is-active falcon-sensor >/dev/null 2>&1 || pgrep -x "falcon-sensor" >/dev/null 2>&1; then
+  falcon="active"
+fi
+
+# 3. Palo Alto Cortex XDR
+cortex="inactive"
+if systemctl is-active cortex-agent >/dev/null 2>&1 || systemctl is-active traps_pmd >/dev/null 2>&1 || [ -f "/opt/traps/bin/cytool" ]; then
+  cortex="active"
+fi
+
+# 4. SentinelOne
+sentinelone="inactive"
+if systemctl is-active sentinelone >/dev/null 2>&1 || pgrep -x "sentinelone" >/dev/null 2>&1; then
+  sentinelone="active"
+fi
+
+# 5. Microsoft Defender for Endpoint (mdatp)
+defender="inactive"
+if systemctl is-active mdatp >/dev/null 2>&1 || command -v mdatp >/dev/null 2>&1; then
+  defender="active"
+fi
+
+# 6. Falco / Tetragon (eBPF)
+ebpf_runtime="inactive"
+if systemctl is-active falco >/dev/null 2>&1 || systemctl is-active tetragon >/dev/null 2>&1; then
+  ebpf_runtime="active"
+fi
+
+# 7. Auditd
+auditd="inactive"
+if systemctl is-active auditd >/dev/null 2>&1; then
+  auditd="active"
+fi
+
+# Determine primary active sensor
+active_count=0
+primary_sensor="None"
+primary_type="none"
+
+if [ "$wazuh_agent" == "active" ]; then
+  active_count=$((active_count + 1))
+  primary_sensor="Wazuh EDR"
+  primary_type="wazuh"
+fi
+
+if [ "$falcon" == "active" ]; then
+  active_count=$((active_count + 1))
+  primary_sensor="CrowdStrike Falcon"
+  primary_type="falcon"
+fi
+
+if [ "$cortex" == "active" ]; then
+  active_count=$((active_count + 1))
+  primary_sensor="Cortex XDR"
+  primary_type="cortex"
+fi
+
+if [ "$sentinelone" == "active" ]; then
+  active_count=$((active_count + 1))
+  primary_sensor="SentinelOne"
+  primary_type="sentinelone"
+fi
+
+if [ "$defender" == "active" ]; then
+  active_count=$((active_count + 1))
+  primary_sensor="Microsoft Defender"
+  primary_type="defender"
+fi
+
+if [ "$ebpf_runtime" == "active" ]; then
+  active_count=$((active_count + 1))
+  [ "$primary_type" == "none" ] && primary_sensor="Falco eBPF" && primary_type="falco"
+fi
+
+if [ "$active_count" -gt 1 ]; then
+  primary_display="Multi-EDR ($active_count activos)"
+elif [ "$active_count" -eq 1 ]; then
+  primary_display="$primary_sensor"
+else
+  primary_display="Sin Protección EDR"
+fi
+
+global_status="unprotected"
+if [ "$active_count" -ge 1 ]; then
+  global_status="protected"
+fi
+
+# Output JSON
+cat <<JSON_OUT
+{
+  "status": "$global_status",
+  "primary": "$primary_display",
+  "primaryType": "$primary_type",
+  "activeCount": $active_count,
+  "sensors": {
+    "wazuh": {
+      "name": "Wazuh EDR",
+      "agent": "$wazuh_agent",
+      "manager": "$wazuh_manager"
+    },
+    "crowdstrike": {
+      "name": "CrowdStrike Falcon",
+      "status": "$falcon"
+    },
+    "cortex": {
+      "name": "Palo Alto Cortex XDR",
+      "status": "$cortex"
+    },
+    "sentinelone": {
+      "name": "SentinelOne",
+      "status": "$sentinelone"
+    },
+    "defender": {
+      "name": "Microsoft Defender (MDE)",
+      "status": "$defender"
+    },
+    "ebpf": {
+      "name": "Falco / Tetragon (eBPF)",
+      "status": "$ebpf_runtime"
+    },
+    "auditd": {
+      "name": "Linux Auditd",
+      "status": "$auditd"
+    }
+  },
+  "timestamp": "$(date -Iseconds)"
+}
+JSON_OUT

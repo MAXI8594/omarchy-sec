@@ -10,7 +10,7 @@ Item {
   property var settings: ({})
 
   property bool isProtected: false
-  property string primarySensor: "Cargando..."
+  property string primarySensor: "Omarchy Sec"
   property string primaryType: "none"
   property int activeSensorCount: 0
   property var sensorsData: ({})
@@ -21,7 +21,8 @@ Item {
   readonly property bool enableNotifications: setting("enableNotifications", true) === true
 
   readonly property string statusText: {
-    if (root.isProtected) return root.primarySensor + " · Protegido"
+    if (root.activeSensorCount > 1) return "Multi-EDR (" + root.activeSensorCount + " activos) · Protegido"
+    if (root.activeSensorCount === 1) return root.primarySensor + " · Protegido"
     return "Desprotegido (Sin EDR Activo)"
   }
 
@@ -47,6 +48,10 @@ Item {
     Quickshell.execDetached(["xdg-open", root.dashboardUrl])
   }
 
+  function openUrl(url) {
+    Quickshell.execDetached(["xdg-open", url])
+  }
+
   function callAgent() {
     Quickshell.execDetached(["omarchy-sec", "agent"])
   }
@@ -68,7 +73,7 @@ Item {
         if (!raw) return
         var data = JSON.parse(raw)
         root.isProtected = (data.status === "protected")
-        root.primarySensor = data.primary || "Desconocido"
+        root.primarySensor = data.primary || "Omarchy Sec"
         root.primaryType = data.primaryType || "none"
         root.activeSensorCount = data.activeCount || 0
         root.sensorsData = data.sensors || {}

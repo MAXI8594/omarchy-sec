@@ -1,20 +1,27 @@
 .pragma library
 
 /**
- * Returns formatted status string based on agent and manager health
+ * Returns formatted status string based on active protection
  */
-function deriveStatus(agentActive, managerActive) {
-  if (agentActive && managerActive) return "Protegido (EDR Activo)";
-  if (agentActive && !managerActive) return "Agente Activo (Manager Desconectado)";
-  if (!agentActive && managerActive) return "Agente Detenido (Alerta EDR)";
-  return "Desprotegido (Servicios Inactivos)";
+function deriveStatus(activeCount, primarySensor) {
+  if (activeCount > 1) return "Multi-EDR Protegido (" + activeCount + " activos)";
+  if (activeCount === 1) return primarySensor + " · Protegido";
+  return "Desprotegido (Sin EDR Activo)";
 }
 
 /**
- * Maps severity number to color
+ * Returns friendly sensor name by key
  */
-function severityColor(level, successColor, warningColor, urgentColor) {
-  if (level >= 10) return urgentColor || "#ef4444";
-  if (level >= 7) return warningColor || "#eab308";
-  return successColor || "#22c55e";
+function sensorName(key) {
+  var names = {
+    "": "Omarchy Sec",
+    "wazuh": "Wazuh Open XDR/EDR",
+    "crowdstrike": "CrowdStrike Falcon",
+    "cortex": "Palo Alto Cortex XDR",
+    "sentinelone": "SentinelOne",
+    "defender": "Microsoft Defender (MDE)",
+    "ebpf": "Falco / Tetragon (eBPF)",
+    "auditd": "Linux Auditd"
+  };
+  return names[key] || "Omarchy Sec";
 }

@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
+import "Model.js" as Model
 
 Panel {
   id: root
@@ -14,6 +15,9 @@ Panel {
   property var hostWidget: null
   property var service: null
 
+  // "" = General Omarchy Sec; "wazuh", "crowdstrike", "cortex", "defender", "sentinelone", "ebpf", "auditd"
+  property string selectedSensor: ""
+
   readonly property var barIdentity: hostWidget || root
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property color urgent: bar ? bar.urgent : Color.urgent
@@ -23,9 +27,19 @@ Panel {
   readonly property color warningColor: "#eab308"
 
   readonly property bool isProtected: service ? service.isProtected : false
-  readonly property string primarySensor: service ? service.primarySensor : "Cargando..."
   readonly property color statusColor: service ? service.statusColor : foreground
   readonly property var sensors: service && service.sensorsData ? service.sensorsData : ({})
+
+  // Titulo dinamico: "Omarchy Sec" por defecto, o el nombre del sensor seleccionado
+  readonly property string heroTitle: Model.sensorName(root.selectedSensor)
+
+  function toggleSelectSensor(key) {
+    if (root.selectedSensor === key) {
+      root.selectedSensor = ""
+    } else {
+      root.selectedSensor = key
+    }
+  }
 
   function switchPanel(direction) {
     if (root.bar && typeof root.bar.switchPanelFrom === "function")
@@ -41,7 +55,7 @@ Panel {
     open: root.opened
     focusTarget: keyCatcher
     contentWidth: panel.fittedContentWidth(Style.space(360))
-    contentHeight: panel.fittedContentHeight(column.implicitHeight, Style.space(540))
+    contentHeight: panel.fittedContentHeight(column.implicitHeight, Style.space(560))
 
     PanelKeyCatcher {
       id: keyCatcher
@@ -54,10 +68,10 @@ Panel {
         width: parent.width
         spacing: Style.space(10)
 
-        // ---- Encabezado Hero ----
+        // ---- Encabezado Hero Dinámico ----
         PanelHero {
           width: parent.width
-          title: root.isProtected ? root.primarySensor : "Seguridad del Endpoint"
+          title: root.heroTitle
           foreground: root.statusColor
           fontFamily: root.fontFamily
           iconOpacity: root.isProtected ? 1.0 : 0.7
@@ -76,9 +90,20 @@ Panel {
           }
         }
 
+        // Subtítulo de estado general
+        Text {
+          anchors.horizontalCenter: parent.horizontalCenter
+          text: root.selectedSensor === "" 
+                ? (service ? service.statusText : "Omarchy Sec")
+                : "Sensor seleccionado · Click para deseleccionar"
+          font.family: root.fontFamily
+          font.pixelSize: Style.space(10)
+          color: root.dim
+        }
+
         PanelSeparator { width: parent.width; foreground: root.foreground }
 
-        // ---- Tarjeta de Sensores EDR / XDR ----
+        // ---- Tarjeta de Sensores EDR / XDR Seleccionables ----
         Rectangle {
           width: parent.width
           implicitHeight: sensorCol.implicitHeight + Style.space(16)
@@ -94,84 +119,188 @@ Panel {
             spacing: Style.space(6)
 
             Text {
-              text: "Sensores y Protección Detectados:"
+              text: "Selecciona un Sensor para detalles:"
               font.family: root.fontFamily
               font.pixelSize: Style.space(11)
               font.bold: true
               color: root.foreground
             }
 
-            // Wazuh EDR
-            Row {
+            // 1. Wazuh Open XDR/EDR
+            Rectangle {
               width: parent.width
-              spacing: Style.space(8)
-              Rectangle {
-                width: Style.space(8); height: Style.space(8); radius: 4
-                color: (sensors.wazuh && sensors.wazuh.agent === "active") ? root.successColor : Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.2)
-                anchors.verticalCenter: parent.verticalCenter
+              height: Style.space(26)
+              radius: Style.radius(4)
+              color: root.selectedSensor === "wazuh" ? Qt.rgba(root.successColor.r, root.successColor.g, root.successColor.b, 0.15) : (rowWazuhArea.containsMouse ? Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.08) : "transparent")
+              border.color: root.selectedSensor === "wazuh" ? root.successColor : "transparent"
+              border.width: 1
+
+              MouseArea {
+                id: rowWazuhArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.toggleSelectSensor("wazuh")
               }
-              Text {
-                text: "Wazuh Open XDR/EDR: " + (sensors.wazuh && sensors.wazuh.agent === "active" ? "Activo (Conectado :1514)" : "Inactivo")
-                font.family: root.fontFamily
-                font.pixelSize: Style.space(10)
-                color: (sensors.wazuh && sensors.wazuh.agent === "active") ? root.foreground : root.dim
+
+              Row {
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.left: parent.left
+                anchors.leftMargin: Style.space(6)
+                spacing: Style.space(8)
+                Rectangle {
+                  width: Style.space(8); height: Style.space(8); radius: 4
+                  color: (sensors.wazuh && sensors.wazuh.agent === "active") ? root.successColor : Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.2)
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                  text: "Wazuh Open XDR/EDR"
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.space(10)
+                  font.bold: root.selectedSensor === "wazuh"
+                  color: (sensors.wazuh && sensors.wazuh.agent === "active") ? root.foreground : root.dim
+                }
+                Text {
+                  text: (sensors.wazuh && sensors.wazuh.agent === "active") ? "• Activo (:1514)" : "• Inactivo"
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.space(9)
+                  color: (sensors.wazuh && sensors.wazuh.agent === "active") ? root.successColor : root.dim
+                }
               }
             }
 
-            // CrowdStrike Falcon
-            Row {
+            // 2. CrowdStrike Falcon
+            Rectangle {
               width: parent.width
-              spacing: Style.space(8)
-              Rectangle {
-                width: Style.space(8); height: Style.space(8); radius: 4
-                color: (sensors.crowdstrike && sensors.crowdstrike.status === "active") ? root.successColor : Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.2)
-                anchors.verticalCenter: parent.verticalCenter
+              height: Style.space(26)
+              radius: Style.radius(4)
+              color: root.selectedSensor === "crowdstrike" ? Qt.rgba(root.successColor.r, root.successColor.g, root.successColor.b, 0.15) : (rowFalconArea.containsMouse ? Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.08) : "transparent")
+              border.color: root.selectedSensor === "crowdstrike" ? root.successColor : "transparent"
+              border.width: 1
+
+              MouseArea {
+                id: rowFalconArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.toggleSelectSensor("crowdstrike")
               }
-              Text {
-                text: "CrowdStrike Falcon Sensor: " + (sensors.crowdstrike && sensors.crowdstrike.status === "active" ? "Activo" : "No detectado")
-                font.family: root.fontFamily
-                font.pixelSize: Style.space(10)
-                color: (sensors.crowdstrike && sensors.crowdstrike.status === "active") ? root.foreground : root.dim
+
+              Row {
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.left: parent.left
+                anchors.leftMargin: Style.space(6)
+                spacing: Style.space(8)
+                Rectangle {
+                  width: Style.space(8); height: Style.space(8); radius: 4
+                  color: (sensors.crowdstrike && sensors.crowdstrike.status === "active") ? root.successColor : Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.2)
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                  text: "CrowdStrike Falcon Sensor"
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.space(10)
+                  font.bold: root.selectedSensor === "crowdstrike"
+                  color: (sensors.crowdstrike && sensors.crowdstrike.status === "active") ? root.foreground : root.dim
+                }
+                Text {
+                  text: (sensors.crowdstrike && sensors.crowdstrike.status === "active") ? "• Activo" : "• No detectado"
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.space(9)
+                  color: (sensors.crowdstrike && sensors.crowdstrike.status === "active") ? root.successColor : root.dim
+                }
               }
             }
 
-            // Palo Alto Cortex XDR
-            Row {
+            // 3. Palo Alto Cortex XDR
+            Rectangle {
               width: parent.width
-              spacing: Style.space(8)
-              Rectangle {
-                width: Style.space(8); height: Style.space(8); radius: 4
-                color: (sensors.cortex && sensors.cortex.status === "active") ? root.successColor : Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.2)
-                anchors.verticalCenter: parent.verticalCenter
+              height: Style.space(26)
+              radius: Style.radius(4)
+              color: root.selectedSensor === "cortex" ? Qt.rgba(root.successColor.r, root.successColor.g, root.successColor.b, 0.15) : (rowCortexArea.containsMouse ? Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.08) : "transparent")
+              border.color: root.selectedSensor === "cortex" ? root.successColor : "transparent"
+              border.width: 1
+
+              MouseArea {
+                id: rowCortexArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.toggleSelectSensor("cortex")
               }
-              Text {
-                text: "Palo Alto Cortex XDR: " + (sensors.cortex && sensors.cortex.status === "active" ? "Activo" : "No detectado")
-                font.family: root.fontFamily
-                font.pixelSize: Style.space(10)
-                color: (sensors.cortex && sensors.cortex.status === "active") ? root.foreground : root.dim
+
+              Row {
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.left: parent.left
+                anchors.leftMargin: Style.space(6)
+                spacing: Style.space(8)
+                Rectangle {
+                  width: Style.space(8); height: Style.space(8); radius: 4
+                  color: (sensors.cortex && sensors.cortex.status === "active") ? root.successColor : Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.2)
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                  text: "Palo Alto Cortex XDR"
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.space(10)
+                  font.bold: root.selectedSensor === "cortex"
+                  color: (sensors.cortex && sensors.cortex.status === "active") ? root.foreground : root.dim
+                }
+                Text {
+                  text: (sensors.cortex && sensors.cortex.status === "active") ? "• Activo" : "• No detectado"
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.space(9)
+                  color: (sensors.cortex && sensors.cortex.status === "active") ? root.successColor : root.dim
+                }
               }
             }
 
-            // Microsoft Defender / SentinelOne
-            Row {
+            // 4. Microsoft Defender / SentinelOne
+            Rectangle {
               width: parent.width
-              spacing: Style.space(8)
-              Rectangle {
-                width: Style.space(8); height: Style.space(8); radius: 4
-                color: (sensors.defender && sensors.defender.status === "active") || (sensors.sentinelone && sensors.sentinelone.status === "active") ? root.successColor : Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.2)
-                anchors.verticalCenter: parent.verticalCenter
+              height: Style.space(26)
+              radius: Style.radius(4)
+              color: root.selectedSensor === "defender" ? Qt.rgba(root.successColor.r, root.successColor.g, root.successColor.b, 0.15) : (rowDefArea.containsMouse ? Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.08) : "transparent")
+              border.color: root.selectedSensor === "defender" ? root.successColor : "transparent"
+              border.width: 1
+
+              MouseArea {
+                id: rowDefArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.toggleSelectSensor("defender")
               }
-              Text {
-                text: "Defender / SentinelOne: " + (sensors.defender && sensors.defender.status === "active" ? "Defender Activo" : (sensors.sentinelone && sensors.sentinelone.status === "active" ? "S1 Activo" : "No detectado"))
-                font.family: root.fontFamily
-                font.pixelSize: Style.space(10)
-                color: (sensors.defender && sensors.defender.status === "active") || (sensors.sentinelone && sensors.sentinelone.status === "active") ? root.foreground : root.dim
+
+              Row {
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.left: parent.left
+                anchors.leftMargin: Style.space(6)
+                spacing: Style.space(8)
+                Rectangle {
+                  width: Style.space(8); height: Style.space(8); radius: 4
+                  color: (sensors.defender && sensors.defender.status === "active") ? root.successColor : Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.2)
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                  text: "Microsoft Defender (MDE)"
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.space(10)
+                  font.bold: root.selectedSensor === "defender"
+                  color: (sensors.defender && sensors.defender.status === "active") ? root.foreground : root.dim
+                }
+                Text {
+                  text: (sensors.defender && sensors.defender.status === "active") ? "• Activo" : "• No detectado"
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.space(9)
+                  color: (sensors.defender && sensors.defender.status === "active") ? root.successColor : root.dim
+                }
               }
             }
           }
         }
 
-        // ---- Botón: Abrir Dashboard SOC ----
+        // ---- Botón de Acción Dinámico según Selección ----
         Rectangle {
           width: parent.width
           height: Style.space(36)
@@ -186,7 +315,15 @@ Panel {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: {
-              if (service) service.openDashboard()
+              if (root.selectedSensor === "crowdstrike") {
+                if (service) service.openUrl("https://falcon.crowdstrike.com")
+              } else if (root.selectedSensor === "cortex") {
+                if (service) service.openUrl("https://cortex.paloaltonetworks.com")
+              } else if (root.selectedSensor === "defender") {
+                if (service) service.openUrl("https://security.microsoft.com")
+              } else {
+                if (service) service.openDashboard()
+              }
               root.close()
             }
           }
@@ -195,7 +332,19 @@ Panel {
             anchors.centerIn: parent
             spacing: Style.space(8)
             Text { text: "󰖟"; font.family: root.fontFamily; font.pixelSize: Style.space(13); color: root.statusColor; anchors.verticalCenter: parent.verticalCenter }
-            Text { text: "Abrir SOC Dashboard (:9001)"; font.family: root.fontFamily; font.pixelSize: Style.space(11); font.bold: true; color: root.statusColor; anchors.verticalCenter: parent.verticalCenter }
+            Text {
+              text: {
+                if (root.selectedSensor === "crowdstrike") return "Abrir Falcon Console (Cloud)"
+                if (root.selectedSensor === "cortex") return "Abrir Cortex XDR Hub"
+                if (root.selectedSensor === "defender") return "Abrir Microsoft Defender Portal"
+                return "Abrir SOC Dashboard (:9001)"
+              }
+              font.family: root.fontFamily
+              font.pixelSize: Style.space(11)
+              font.bold: true
+              color: root.statusColor
+              anchors.verticalCenter: parent.verticalCenter
+            }
           }
         }
 

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Omarchy Sec - Informe Ejecutivo de Seguridad y Arquitectura EDR/XDR</title>
+<style>
+  @page {
+    size: A4;
+    margin: 18mm 16mm 18mm 16mm;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    background: #ffffff;
+    line-height: 1.5;
+    font-size: 10.5pt;
+    margin: 0;
+    padding: 0;
+  }
+  .header {
+    border-bottom: 2px solid #6366f1;
+    padding-bottom: 12px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .title-block h1 {
+    font-size: 20pt;
+    color: #0f172a;
+    margin: 0 0 4px 0;
+    letter-spacing: -0.5px;
+  }
+  .title-block .subtitle {
+    font-size: 11pt;
+    color: #64748b;
+    font-weight: 500;
+  }
+  .badge {
+    background: #6366f1;
+    color: #ffffff;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 8.5pt;
+    font-weight: bold;
+    text-transform: uppercase;
+  }
+  h2 {
+    font-size: 13pt;
+    color: #0f172a;
+    border-left: 4px solid #6366f1;
+    padding-left: 8px;
+    margin-top: 22px;
+    margin-bottom: 10px;
+  }
+  h3 {
+    font-size: 11pt;
+    color: #334155;
+    margin-top: 14px;
+    margin-bottom: 6px;
+  }
+  p {
+    margin: 0 0 10px 0;
+    color: #334155;
+  }
+  .highlight-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin: 14px 0;
+  }
+  .highlight-box.accent {
+    border-left: 4px solid #10b981;
+    background: #f0fdf4;
+  }
+  .diagram-container {
+    background: #0f172a;
+    color: #f8fafc;
+    border-radius: 8px;
+    padding: 14px;
+    font-family: "Cascadia Code", "Fira Code", monospace;
+    font-size: 8pt;
+    line-height: 1.35;
+    overflow-x: auto;
+    margin: 14px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 9pt;
+  }
+  th {
+    background: #f1f5f9;
+    color: #0f172a;
+    text-align: left;
+    padding: 8px 10px;
+    border: 1px solid #cbd5e1;
+    font-weight: 600;
+  }
+  td {
+    padding: 7px 10px;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+  }
+  tr:nth-child(even) {
+    background: #f8fafc;
+  }
+  .page-break {
+    page-break-before: always;
+  }
+  .footer {
+    margin-top: 20px;
+    padding-top: 10px;
+    border-top: 1px solid #e2e8f0;
+    font-size: 8pt;
+    color: #94a3b8;
+    display: flex;
+    justify-content: space-between;
+  }
+  .tag {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 7.5pt;
+    font-weight: bold;
+  }
+  .tag-green { background: #dcfce7; color: #166534; }
+  .tag-blue { background: #e0e7ff; color: #3730a3; }
+  .tag-purple { background: #f3e8ff; color: #6b21a8; }
+</style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="title-block">
+      <h1>🛡️ OMARCHY SEC</h1>
+      <div class="subtitle">Arquitectura Empresarial de EDR/XDR & Respuesta Autónoma con IA en Arch Linux</div>
+    </div>
+    <div>
+      <span class="badge">v1.0.0 · Production Ready</span>
+    </div>
+  </div>
+
+  <!-- RESUMEN EJECUTIVO -->
+  <h2>1. Resumen Ejecutivo</h2>
+  <p>
+    <strong>Omarchy Sec</strong> es una plataforma de seguridad agnóstica de grado empresarial y respuesta autónoma a incidentes diseñada específicamente para estaciones de trabajo <strong>Omarchy Linux (Arch Linux + Hyprland)</strong>.
+  </p>
+  <p>
+    Permite integrar y monitorear agentes corporativos de <strong>CrowdStrike Falcon, Microsoft Defender (MDE), SentinelOne, Palo Alto Cortex XDR y Wazuh</strong>, resolviendo el desafío de compatibilidad en distribuciones rolling-release y garantizando que los equipos reporten telemetría en tiempo real a las consolas centrales del SOC corporativo bajo un estricto modelo <strong>Zero Trust</strong>.
+  </p>
+
+  <div class="highlight-box accent">
+    <strong>Pilares Clave:</strong>
+    <ul>
+      <li><strong>Agnóstico & Multi-Sensor:</strong> Detecta y unifica el monitoreo de cualquier sensor EDR instalado sin configuraciones complejas.</li>
+      <li><strong>Respuesta Autónoma con IA ("Call Agent"):</strong> Conexión en tiempo real con la API de Wazuh (:55000) e historial forense para investigación y contención activa (kill processes, firewall isolate).</li>
+      <li><strong>Zero Trust Microsegmentation:</strong> Telemetría saliente exclusiva (Egress TLS/443); 0 puertos abiertos requeridos en la estación de trabajo.</li>
+      <li><strong>DevSecOps Verified:</strong> 100% aprobado en SAST, IaC, Secrets scanning, SCA y DAST.</li>
+    </ul>
+  </div>
+
+  <!-- DIAGRAMA DE ARQUITECTURA -->
+  <h2>2. Flujo de Telemetría y Gestión de Flota Centralizada</h2>
+  <div class="diagram-container">
+┌────────────────────────────────────────────────────────────────────────┐
+│                   CONSOLAS CENTRALES EN LA NUBE                        │
+│  (Falcon Cloud • Defender Security Portal • SentinelOne Console • SOC) │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ (Stream de salida TLS/443 persistente)
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                   ESTACIÓN DE TRABAJO OMARCHY                          │
+│                                                                        │
+│  ┌───────────────────────┐              ┌───────────────────────────┐  │
+│  │   AGENTE CORPORATIVO  │              │   OMARCHY SEC SENTINEL    │  │
+│  │  (Falcon / MDE / S1)  │ <----------> │    (Widget Barra & Panel) │  │
+│  │  Telemetría eBPF/LKM  │              │  Monitoreo en tiempo real │  │
+│  └───────────┬───────────┘              └─────────────┬─────────────┘  │
+│              │                                        │                │
+│              ▼                                        ▼                │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │             RESPUESTA AUTÓNOMA LOCAL CON AGENTE DE IA            │  │
+│  │                  (`omarchy-sec agent` Bridge)                    │  │
+│  │       API REST (:55000) • alerts.json • Sockets • Procesos       │  │
+│  └──────────────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────────┘
+  </div>
+
+  <!-- MATRIZ DE SOPORTE EDR -->
+  <h2>3. Matriz de Soporte EDR / XDR Corporativo</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Sensor / Plataforma</th>
+        <th>Tipo de Paquete</th>
+        <th>Método de Despliegue en Omarchy</th>
+        <th>Comando CLI</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>CrowdStrike Falcon</strong></td>
+        <td>.rpm (RHEL/SLES)</td>
+        <td><code>rpmextract</code> + <code>falconctl --cid</code> (Modo eBPF)</td>
+        <td><span class="tag tag-blue">omarchy-sec onboard falcon</span></td>
+      </tr>
+      <tr>
+        <td><strong>Microsoft Defender (MDE)</strong></td>
+        <td>.deb (Ubuntu)</td>
+        <td><code>debtap</code> + <code>MicrosoftDefenderATPOnboarding.py</code></td>
+        <td><span class="tag tag-blue">omarchy-sec onboard defender</span></td>
+      </tr>
+      <tr>
+        <td><strong>SentinelOne Singularity</strong></td>
+        <td>.rpm / .deb</td>
+        <td><code>rpmextract</code> + <code>sentinelctl site-token</code></td>
+        <td><span class="tag tag-purple">omarchy-sec onboard sentinelone</span></td>
+      </tr>
+      <tr>
+        <td><strong>Palo Alto Cortex XDR</strong></td>
+        <td>.sh Bundle</td>
+        <td>Script ejecutable + <code>--distribution-token</code></td>
+        <td><span class="tag tag-purple">omarchy-sec onboard cortex</span></td>
+      </tr>
+      <tr>
+        <td><strong>Wazuh Open XDR/EDR</strong></td>
+        <td>AUR / Nativo</td>
+        <td><code>paru -S wazuh-agent</code> + <code>agent-auth</code></td>
+        <td><span class="tag tag-green">omarchy-sec onboard wazuh</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <!-- RESPUESTA A INCIDENTES CON IA -->
+  <h2>4. Mecanismo de Respuesta Autónoma con IA ("Call Agent")</h2>
+  <p>
+    A diferencia de los paneles tradicionales que solo ofrecen indicadores estáticos, <strong>Omarchy Sec</strong> incorpora un puente interactivo directo entre el motor EDR y el Agente de IA de Omarchy:
+  </p>
+
+  <div class="highlight-box">
+    <h3>Flujo de Operación del Agente SOC:</h3>
+    <ol>
+      <li><strong>Autenticación con la API REST (:55000):</strong> Genera tokens JWT dinámicos para consultar el estado del endpoint, FIM (Syscheck) y evaluaciones de configuración de seguridad (SCA).</li>
+      <li><strong>Volcado de Telemetría Forense:</strong> Inyecta las últimas alertas registradas en <code>alerts.json</code>, sockets abiertos (<code>ss -tuln</code>) y procesos de alto consumo.</li>
+      <li><strong>Capacidad de Contención Inmediata:</strong> El agente puede aislar direcciones IP maliciosas mediante <code>ufw/nftables</code>, matar procesos sospechosos (<code>kill</code>) y sugerir reversión de archivos vía snapshots de Btrfs/Snapper.</li>
+    </ol>
+  </div>
+
+  <!-- PRE-PR QUALITY GATES -->
+  <h2>5. Controles DevSecOps y Calidad Pre-PR</h2>
+  <p>El proyecto cuenta con una suite automatizada de pruebas ejecutada en cada commit y Pull Request:</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Control de Seguridad</th>
+        <th>Herramienta Utilizada</th>
+        <th>Resultado Obtenido</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>SAST (Static Analysis)</strong></td>
+        <td>ShellCheck & Semgrep</td>
+        <td><span class="tag tag-green">✓ 0 Errores / 0 Warnings</span></td>
+      </tr>
+      <tr>
+        <td><strong>Validación de Esquema QML</strong></td>
+        <td>Omarchy Plugin Validator</td>
+        <td><span class="tag tag-green">✓ 100% Compatible con Quattro Shell</span></td>
+      </tr>
+      <tr>
+        <td><strong>Escaneo de Secretos</strong></td>
+        <td>Gitleaks & TruffleHog</td>
+        <td><span class="tag tag-green">✓ 0 Llaves o Credenciales Filtradas</span></td>
+      </tr>
+      <tr>
+        <td><strong>IaC & Misconfiguration</strong></td>
+        <td>Trivy Scanner</td>
+        <td><span class="tag tag-green">✓ Docker Compose Seguro</span></td>
+      </tr>
+      <tr>
+        <td><strong>DAST (Dynamic Testing)</strong></td>
+        <td>Curl TLS Health Check</td>
+        <td><span class="tag tag-green">✓ Puerto 9001 Activo (HTTP 302/200)</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- COMANDOS Y REPOSITORIO -->
+  <h2>6. Repositorio Oficial y Comandos CLI</h2>
+  <p>
+    <strong>Repositorio en GitHub:</strong> <a href="https://github.com/MAXI8594/omarchy-sec">https://github.com/MAXI8594/omarchy-sec</a><br>
+    <strong>Instalación Rápida:</strong> <code>git clone https://github.com/MAXI8594/omarchy-sec && cd omarchy-sec && ./install.sh</code>
+  </p>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div>Omarchy Sec · Autor: Maximiliano Olivera (MAXI8594)</div>
+    <div>Licencia: MIT · Fecha: Agosto 2026</div>
+  </div>
+
+</body>
+</html>

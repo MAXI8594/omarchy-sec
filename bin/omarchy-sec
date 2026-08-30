@@ -16,6 +16,9 @@ status)
 agent|"call-agent"|incident)
   omarchy-sec-agent "$@"
   ;;
+onboard|enroll)
+  omarchy-sec-onboard "$@"
+  ;;
 api)
   omarchy-sec-wazuh-api "$@"
   ;;
@@ -34,6 +37,7 @@ help|--help|-h)
   echo "Comandos:"
   echo "  status         Muestra el estado de protección y sensores EDR (JSON)"
   echo "  agent          Llama al Agente de Seguridad con acceso a la API de Wazuh"
+  echo "  onboard        Asistente de onboarding corporativo (Falcon, MDE, S1, Cortex)"
   echo "  api <cmd>      Consulta directa a la API de Wazuh (summary, alerts, sca, fim)"
   echo "  dashboard      Abre la consola web del SOC (:9001)"
   echo "  setup          Inicia el asistente interactivo de instalación"

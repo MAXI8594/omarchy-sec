@@ -1,7 +1,7 @@
-# 🛡️ Omarchy Sec (EDR/XDR Agnóstico y Respuesta con IA)
+# 🛡️ Omarchy Sec (Suite Universal de Seguridad y Respuesta con IA)
 
 [![Omarchy Compatible](https://img.shields.io/badge/Omarchy-4.0+-purple.svg)](https://omarchy.org)
-[![Agnostic EDR](https://img.shields.io/badge/EDR-Wazuh%20|%20Falcon%20|%20Cortex%20|%20Defender%20|%20eBPF-blue.svg)](#-soporte-agnóstico-de-sensores-edrxdr)
+[![Agnostic EDR](https://img.shields.io/badge/EDR-Wazuh%20|%20Falcon%20|%20Cortex%20|%20Defender%20|%20eBPF-blue.svg)](#-guías-de-despliegue-corporativo-edrxdr)
 [![Security Pipeline](https://img.shields.io/badge/DevSecOps-SAST%20|%20IaC%20|%20Secrets%20|%20DAST%20Passed-success.svg)](#-pipeline-de-calidad-y-seguridad-pre-pr)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -11,62 +11,52 @@ Plataforma empresarial de **Seguridad de Endpoint Agnóstica** con **Respuesta A
 
 ## 🌟 Características Principales
 
-* 🛡️ **Soporte EDR/XDR Agnóstico:** Detecta, monitorea y agrega telemetría en tiempo real de **Wazuh**, **CrowdStrike Falcon**, **Palo Alto Cortex XDR**, **SentinelOne**, **Microsoft Defender (MDE)**, **Falco eBPF** y **Linux Auditd**.
-* ⚡ **Asistente de Despliegue de Wazuh en 1-Click (`./setup-wazuh.sh`):** Si no hay un sensor corporativo instalado, despliega el stack completo de Wazuh XDR en Docker (con Modo Oscuro en `https://localhost:9001`) y enrola el agente del host con un solo comando.
-* 📊 **Widget Nativo en la Barra de Omarchy:** Muestra el estado de protección en vivo (🟢 Protegido, 🟡 Advertencia, 🔴 Desprotegido) con un panel desplegable interactivo.
-* 🤖 **Respuesta Autónoma a Incidentes con IA (`omarchy agent`):** Ante alertas críticas (Nivel >= 10), abre automáticamente una terminal flotante interactiva con telemetría forense para análisis y contención instantánea (con fallback de modelos: Claude, Gemini, Codex, OpenCode).
-* 🔒 **Verificado con DevSecOps:** Pasó el 100% de los controles de calidad previos a PR (**SAST, IaC, Escaneo de Secretos, SCA y DAST**).
-* 🧼 **100% Espacio de Usuario:** Cumple estrictamente con los estándares de Omarchy: jamás modifica `/usr/share/omarchy/`.
+* 🏢 **Gestión de Flota Empresarial:** Despliegue e integración de agentes corporativos (**CrowdStrike Falcon, Microsoft Defender, SentinelOne, Cortex XDR, Wazuh**) para visibilidad total desde el SOC central en la nube.
+* 🛡️ **Soporte EDR/XDR Agnóstico:** Detección automática y agregación de telemetría de todos los sensores de seguridad en Linux.
+* ⚡ **Asistente 1-Click (`./setup.sh`):** Despliega el stack completo de Wazuh XDR en Docker (Modo Oscuro en `https://localhost:9001`) y enrola el agente local con un comando.
+* 📊 **Widget Adaptativo en la Barra:** Muestra `Omarchy Sec` por defecto y adapta dinámicamente su título y botones al seleccionar sensores.
+* 🤖 **Respuesta con IA y "Call Agent":** Análisis forense en tiempo real con acceso directo a la API REST de Wazuh (`:55000`) e historial de alertas.
+* 🔒 **Microsegmentación Zero Trust:** Telemetría saliente exclusiva (Egress TLS/443); 0 puertos de entrada abiertos requeridos.
+* 🧪 **Verificado con DevSecOps:** Pasó el 100% de los controles Pre-PR (**SAST, IaC, Escaneo de Secretos, SCA y DAST**).
 
 ---
 
-## 🔍 Soporte Agnóstico de Sensores EDR/XDR
+## 🏢 Guías de Despliegue Corporativo EDR / XDR
 
-El motor de detección inteligente (`bin/omarchy-sec-detect`) identifica las capas de seguridad activas:
+Para consultar la guía detallada de conversión de paquetes e integración corporativa en Arch / Omarchy:
 
-| Sensor de Seguridad | Proceso / Servicio | Telemetría Aportada |
-| :--- | :--- | :--- |
-| **Wazuh Open XDR/EDR** | `wazuh-agent.service` + SOC Docker | FIM, SCA (CIS benchmarks), escáner CVE, matriz MITRE ATT&CK |
-| **CrowdStrike Falcon** | `falcon-sensor.service` | EDR a nivel de kernel, Threat Graph |
-| **Palo Alto Cortex XDR** | `cortex-agent.service` / `traps_pmd` | Prevención de exploits, protección de memoria |
-| **SentinelOne** | `sentinelone.service` | Agente autónomo con IA de endpoint |
-| **Microsoft Defender (MDE)** | `mdatp.service` | Protección y telemetría de Microsoft Defender |
-| **Falco / Tetragon (eBPF)** | `falco.service` / `tetragon.service` | Seguridad en tiempo de ejecución basada en eBPF |
-| **Linux Auditd** | `auditd.service` | Registro nativo de syscalls del kernel de Linux |
+👉 [**Guía Empresarial de Despliegue EDR (`docs/ENTERPRISE_EDR_GUIDE.es.md`)**](docs/ENTERPRISE_EDR_GUIDE.es.md)  
+👉 [**Enterprise EDR Deployment Guide in English (`docs/ENTERPRISE_EDR_GUIDE.md`)**](docs/ENTERPRISE_EDR_GUIDE.md)
+
+| Vendor / Sensor | Tipo de Paquete | Método de Onboarding | Comando CLI |
+| :--- | :--- | :--- | :--- |
+| **CrowdStrike Falcon** | `.rpm` (RHEL/SLES) | `rpmextract` + `falconctl --cid` | `omarchy-sec onboard falcon` |
+| **Microsoft Defender (MDE)** | `.deb` (Ubuntu) | `debtap` + `OnboardingLinuxClient.py` | `omarchy-sec onboard defender` |
+| **SentinelOne Singularity** | `.rpm` / `.deb` | `rpmextract` + `sentinelctl site-token` | `omarchy-sec onboard sentinelone` |
+| **Palo Alto Cortex XDR** | `.sh` bundle | `./cortex-installer.sh --distribution-token` | `omarchy-sec onboard cortex` |
+| **Wazuh Agent** | AUR / Nativo | `paru -S wazuh-agent` + `agent-auth` | `omarchy-sec onboard wazuh` |
 
 ---
 
-## 🚀 Instalación Rápida
+## 🚀 Comandos del CLI `omarchy-sec`
 
 ```bash
-# Asistente interactivo con despliegue de Wazuh y detección de sensores
-./setup-wazuh.sh
+# Ver estado de protección y sensores detectados
+omarchy-sec status
+
+# Asistente interactivo de onboarding corporativo
+omarchy-sec onboard [falcon|defender|sentinelone|cortex|wazuh]
+
+# Llamar al Agente de Seguridad con acceso a la API en vivo
+omarchy-sec agent
+
+# Consultar directamente la API de Wazuh
+omarchy-sec api summary
+omarchy-sec api alerts 20 7
+
+# Abrir la consola web del SOC
+omarchy-sec dashboard
+
+# Ejecutar el pipeline de pruebas DevSecOps
+omarchy-sec test
 ```
-
----
-
-## 🧪 Pipeline de Calidad y Seguridad Pre-PR
-
-Ejecutá la suite completa de pruebas antes de publicar o enviar un PR:
-
-```bash
-./tests/run_tests.sh
-```
-
-**Resultado:**
-* ✅ **SAST (ShellCheck & Semgrep):** 0 errores de sintaxis o malas prácticas.
-* ✅ **Validación Omarchy:** 0 errores de esquema en el manifiesto y QML.
-* ✅ **Escaneo de Secretos (Gitleaks & TruffleHog):** 0 credenciales o llaves filtradas.
-* ✅ **IaC (Trivy):** 0 configuraciones inseguras en Docker.
-* ✅ **DAST:** Endpoint de consola (`https://localhost:9001`) respondiendo con éxito.
-
----
-
-## 📚 Documentación Completa
-
-* 🇺🇸 **English Documentation:** [`README.md`](README.md)
-* 🇪🇸 **Documentación en Español:** [`README.es.md`](README.es.md)
-* 🚀 **Guía de Publicación en Marketplace:** [`docs/PUBLISHING.es.md`](docs/PUBLISHING.es.md)
-* 📬 **Propuesta de PR para Omarchy (DHH):** [`docs/OMARCHY_UPSTREAM_PR.es.md`](docs/OMARCHY_UPSTREAM_PR.es.md)
-* 🏗️ **Arquitectura Técnica:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
-* 🎯 **Modelado de Amenazas MITRE:** [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md)

@@ -45,7 +45,7 @@ while true; do
         
       # Si la severidad es Alta o Critica (>= 10), disparar diagnostico automatico con IA
       if [ "$level" -ge "$MIN_AGENT_LEVEL" ]; then
-        ~/.local/bin/omarchy-sec-incident "$level" "$desc" "$rule_id" "$src_ip" "$file_path" &
+        ~/.local/bin/omarchy-sec-agent "$level" "$desc" "$rule_id" "$src_ip" "$file_path" &
       fi
     fi
   done

@@ -47,13 +47,8 @@ Item {
     Quickshell.execDetached(["xdg-open", root.dashboardUrl])
   }
 
-  function testIncident() {
-    Quickshell.execDetached(["omarchy-sec-incident", "12", "Prueba de Respuesta a Incidentes", "100201", "127.0.0.1", "/tmp/test.sh"])
-  }
-
-  function restartWazuhAgent() {
-    Quickshell.execDetached(["pkexec", "systemctl", "restart", "wazuh-agent"])
-    pollTimer.restart()
+  function callAgent() {
+    Quickshell.execDetached(["omarchy-sec", "agent"])
   }
 
   function refresh() {

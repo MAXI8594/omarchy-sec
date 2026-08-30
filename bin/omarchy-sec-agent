@@ -1,0 +1,113 @@
+#!/bin/bash
+
+# ==============================================================================
+# Omarchy Sec - Call AI SOC Analyst & Incident Responder Agent
+# ==============================================================================
+# Equips the AI Agent with live Wazuh API telemetry, alert history, network
+# sockets, process tables, and defensive containment capabilities.
+# ==============================================================================
+
+set -euo pipefail
+
+BASE_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+TIMESTAMP=$(date -Iseconds)
+
+# Parámetros opcionales si viene disparado por una alerta específica
+LEVEL="${1:-}"
+DESC="${2:-}"
+RULE_ID="${3:-}"
+SRC_IP="${4:-}"
+FILE_PATH="${5:-}"
+
+# 1. Recopilar telemetría en vivo desde la API de Wazuh y el sistema
+echo -e "\e[1;33m[*] Conectando con la API de Wazuh y recolectando telemetría del sistema...\e[0m"
+
+wazuh_summary=$("$BASE_DIR/bin/omarchy-sec-wazuh-api" summary 2>/dev/null || echo "{}")
+recent_alerts=$("$BASE_DIR/bin/omarchy-sec-wazuh-api" alerts 8 0 2>/dev/null || echo "[]")
+sensors_detect=$("$BASE_DIR/bin/omarchy-sec-detect" 2>/dev/null || echo "{}")
+open_ports=$(ss -tuln 2>/dev/null | head -n 12 || echo "N/A")
+top_processes=$(ps aux --sort=-%cpu 2>/dev/null | head -n 8 || echo "N/A")
+
+# 2. Si vino con una alerta específica, notificar al escritorio
+if [ -n "$LEVEL" ] && [ -n "$DESC" ]; then
+  if command -v notify-send >/dev/null 2>&1; then
+    notify-send -u critical -a "Omarchy Sec" -i security-high \
+      "🚨 ALERTA EDR (Nivel $LEVEL)" \
+      "$DESC\nRegla: $RULE_ID | IP: $SRC_IP\nArchivo: $FILE_PATH" 2>/dev/null || true
+  fi
+fi
+
+# 3. Construir el prompt forense profundo con acceso a herramientas
+alert_details=""
+if [ -n "$LEVEL" ]; then
+  alert_details="🚨 INCIDENTE REPORTADO DE ALTA SEVERIDAD:
+  - Severidad: Nivel $LEVEL (Escala 1-15)
+  - Regla: $RULE_ID
+  - Descripción: $DESC
+  - Origen / IP: $SRC_IP
+  - Archivo Afectado: $FILE_PATH"
+fi
+
+PROMPT=$(cat <<PROMPT_EOF
+🛡️ OMARCHY SEC: SESIÓN DE SOC ANALYST & ASISTENTE DE SEGURIDAD 🛡️
+
+======================================================================
+ESTADO DEL SISTEMA Y TELEMETRÍA EN VIVO (WAZUH API & HOST)
+======================================================================
+• Hostname: $(hostname)
+• Timestamp: $TIMESTAMP
+• Sensores Activos: $(echo "$sensors_detect" | jq -r '.primary // "Desconocido"')
+
+$alert_details
+
+📊 RESUMEN DE AGENTES EN WAZUH SOC:
+$(echo "$wazuh_summary" | jq '.agents // []' 2>/dev/null)
+
+📜 ÚLTIMAS ALERTAS DE SEGURIDAD REGISTRADAS EN alerts.json:
+$(echo "$recent_alerts" | jq 'map({level: .rule.level, id: .rule.id, description: .rule.description, timestamp: .timestamp, srcip: (.data.srcip // .srcip), file: (.syscheck.path // .data.file)})' 2>/dev/null)
+
+🔌 PUERTOS DE RED EN ESCUCHA:
+$open_ports
+
+⚙️ PROCESOS CON MAYOR CONSUMO:
+$top_processes
+
+======================================================================
+HERRAMIENTAS Y ACCIONES DISPONIBLES
+======================================================================
+Tienes acceso en esta terminal a las siguientes herramientas CLI para profundizar:
+  1. \`omarchy-sec-wazuh-api alerts [limite] [nivel_min]\` -> Ver más historial de alertas de Wazuh.
+  2. \`omarchy-sec-wazuh-api sca\` -> Ver estado de cumplimiento y CIS benchmarks.
+  3. \`omarchy-sec-wazuh-api fim\` -> Ver modificaciones en archivos monitoreados (/etc, dotfiles).
+  4. \`omarchy-sec-wazuh-api query <endpoint>\` -> Consultar cualquier endpoint de la API REST.
+  5. Herramientas de sistema: \`ps\`, \`lsof\`, \`journalctl\`, \`ss\`, \`kill\`, \`ufw\`.
+
+======================================================================
+MISIÓN:
+======================================================================
+1. Revisa la telemetría, historial de alertas y sockets activos para responder las preguntas del usuario o evaluar incidentes.
+2. Si se trata de un incidente activo, determina si es un falso positivo o ataque real y propone/ejecuta la contención necesaria (terminar procesos sospechosos, bloquear IPs).
+3. Si el usuario solicita un diagnóstico general de seguridad, realiza una auditoría del endpoint y sugiere mejoras preventivas.
+PROMPT_EOF
+)
+
+# 4. Lanzar la sesión interactiva del agente
+exec omarchy-launch-terminal -e bash -c "
+echo -e '\e[1;36m======================================================================\e[0m'
+echo -e '\e[1;36m 🛡️  OMARCHY SEC: AGENTE DE SEGURIDAD Y RESPUESTA A INCIDENTES       \e[0m'
+echo -e '\e[1;36m======================================================================\e[0m'
+echo -e 'Conectado a la API de Wazuh (:55000) y recolectando telemetría en vivo...\n'
+
+if ! omarchy-agent --prompt '$PROMPT'; then
+  echo ''
+  echo -e '\e[1;33m[!] El agente por defecto no pudo completar la sesión (límite de cuota).\e[0m'
+  echo -e 'Puedes ejecutar manualmente tu agente alternativo:'
+  echo -e '  \e[1;32magy --prompt \"...\"\e[0m o \e[1;32mgemini --yolo\e[0m'
+fi
+
+echo ''
+echo -e '\e[1;34m======================================================================\e[0m'
+echo -e '\e[1;34m Sesión de seguridad finalizada.                                      \e[0m'
+echo -e '\e[1;34m======================================================================\e[0m'
+read -p 'Presiona ENTER para cerrar esta ventana...'
+"

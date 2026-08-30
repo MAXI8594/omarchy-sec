@@ -13,8 +13,11 @@ case "$cmd" in
 status)
   omarchy-sec-detect
   ;;
-incident)
-  omarchy-sec-incident "$@"
+agent|"call-agent"|incident)
+  omarchy-sec-agent "$@"
+  ;;
+api)
+  omarchy-sec-wazuh-api "$@"
   ;;
 dashboard|soc)
   xdg-open "https://localhost:9001" 2>/dev/null || echo "Abre https://localhost:9001 en tu navegador."
@@ -29,11 +32,12 @@ help|--help|-h)
   echo "Uso: omarchy-sec <comando>"
   echo ""
   echo "Comandos:"
-  echo "  status      Muestra el estado de protección y sensores EDR (JSON)"
-  echo "  incident    Dispara la respuesta a incidentes con IA"
-  echo "  dashboard   Abre la consola web del SOC (:9001)"
-  echo "  setup       Inicia el asistente interactivo de instalación"
-  echo "  test        Ejecuta el pipeline de pruebas DevSecOps (SAST, IaC, Secrets)"
+  echo "  status         Muestra el estado de protección y sensores EDR (JSON)"
+  echo "  agent          Llama al Agente de Seguridad con acceso a la API de Wazuh"
+  echo "  api <cmd>      Consulta directa a la API de Wazuh (summary, alerts, sca, fim)"
+  echo "  dashboard      Abre la consola web del SOC (:9001)"
+  echo "  setup          Inicia el asistente interactivo de instalación"
+  echo "  test           Ejecuta el pipeline de pruebas DevSecOps (SAST, IaC, Secrets)"
   ;;
 *)
   echo "Comando desconocido: $cmd. Ejecuta 'omarchy-sec help' para ver la ayuda."

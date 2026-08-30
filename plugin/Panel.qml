@@ -111,7 +111,7 @@ Panel {
                 anchors.verticalCenter: parent.verticalCenter
               }
               Text {
-                text: "Wazuh Open XDR/EDR: " + (sensors.wazuh && sensors.wazuh.agent === "active" ? "Activo (Conectado)" : "Inactivo")
+                text: "Wazuh Open XDR/EDR: " + (sensors.wazuh && sensors.wazuh.agent === "active" ? "Activo (Conectado :1514)" : "Inactivo")
                 font.family: root.fontFamily
                 font.pixelSize: Style.space(10)
                 color: (sensors.wazuh && sensors.wazuh.agent === "active") ? root.foreground : root.dim
@@ -199,7 +199,7 @@ Panel {
           }
         }
 
-        // ---- Botones Secundarios ----
+        // ---- Botones Secundarios: Refrescar & Call Agent ----
         Row {
           width: parent.width
           spacing: Style.space(8)
@@ -232,17 +232,17 @@ Panel {
             width: (parent.width - Style.space(8)) / 2
             height: Style.space(30)
             radius: Style.radius(6)
-            color: btnTestArea.containsMouse ? Qt.rgba(root.warningColor.r, root.warningColor.g, root.warningColor.b, 0.15) : "transparent"
-            border.color: Qt.rgba(root.warningColor.r, root.warningColor.g, root.warningColor.b, 0.4)
+            color: btnAgentArea.containsMouse ? Qt.rgba(root.warningColor.r, root.warningColor.g, root.warningColor.b, 0.2) : Qt.rgba(root.warningColor.r, root.warningColor.g, root.warningColor.b, 0.08)
+            border.color: Qt.rgba(root.warningColor.r, root.warningColor.g, root.warningColor.b, 0.5)
             border.width: 1
 
             MouseArea {
-              id: btnTestArea
+              id: btnAgentArea
               anchors.fill: parent
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
               onClicked: {
-                if (service) service.testIncident()
+                if (service) service.callAgent()
                 root.close()
               }
             }
@@ -251,7 +251,7 @@ Panel {
               anchors.centerIn: parent
               spacing: Style.space(4)
               Text { text: "🤖"; font.family: root.fontFamily; font.pixelSize: Style.space(10); color: root.foreground }
-              Text { text: "Test AI Responder"; font.family: root.fontFamily; font.pixelSize: Style.space(10); color: root.foreground }
+              Text { text: "Call Agent"; font.family: root.fontFamily; font.pixelSize: Style.space(10); font.bold: true; color: root.foreground }
             }
           }
         }

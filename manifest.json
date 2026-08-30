@@ -10,7 +10,7 @@
     "bar-widget"
   ],
   "entryPoints": {
-    "barWidget": "plugin/BarWidget.qml"
+    "barWidget": "BarWidget.qml"
   },
   "barWidget": {
     "displayName": "Omarchy Sec",

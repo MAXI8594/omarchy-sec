@@ -1,55 +1,44 @@
 #!/bin/bash
 
 # ==============================================================================
-# Omarchy Sec - Universal Security Suite Installer
+# Omarchy Sec - Standalone 1-Click Installer
 # ==============================================================================
 
 set -euo pipefail
 
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BIN_DIR="$HOME/.local/bin"
-PLUGIN_DIR="$HOME/.config/omarchy/plugins/io.github.maxi8594.omarchy-sec"
-SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
-SHELL_CONFIG="$HOME/.config/omarchy/shell.json"
+TARGET_BIN="$HOME/.local/bin"
+TARGET_PLUGIN="$HOME/.config/omarchy/plugins/io.github.maxi8594.omarchy-sec"
+TARGET_SYSTEMD="$HOME/.config/systemd/user"
 
 echo "=========================================================="
 echo " 🛡️ Instalando Omarchy Sec & AI Incident Bridge"
 echo "=========================================================="
 
-# 1. Crear directorios
-mkdir -p "$BIN_DIR" "$PLUGIN_DIR" "$SYSTEMD_USER_DIR"
+mkdir -p "$TARGET_BIN" "$TARGET_PLUGIN" "$TARGET_SYSTEMD"
 
-# 2. Instalar binarios CLI
-echo "[*] Instalando binarios en $BIN_DIR..."
-cp "$BASE_DIR/bin/"* "$BIN_DIR/"
-chmod +x "$BIN_DIR/omarchy-sec"*
+# 1. Instalar binarios CLI
+echo "[*] Instalando binarios en $TARGET_BIN..."
+cp "$BASE_DIR/bin/"* "$TARGET_BIN/"
+chmod +x "$TARGET_BIN/omarchy-sec"*
 
-# 3. Instalar Plugin de Quickshell
-echo "[*] Instalando plugin de barra en $PLUGIN_DIR..."
-cp -r "$BASE_DIR/plugin/"* "$PLUGIN_DIR/"
+# 2. Instalar Plugin de Barra en Quickshell
+echo "[*] Instalando plugin de barra en $TARGET_PLUGIN..."
+cp "$BASE_DIR/manifest.json" "$BASE_DIR/"*.qml "$BASE_DIR/"*.js "$TARGET_PLUGIN/"
 
-# 4. Configurar servicio de usuario en systemd
-echo "[*] Configurando servicio systemd de usuario..."
-cp "$BASE_DIR/systemd/omarchy-sec-watcher.service" "$SYSTEMD_USER_DIR/"
+# 3. Instalar y habilitar servicio systemd del observador
+echo "[*] Configurando servicio systemd de usuario (omarchy-sec-watcher.service)..."
+cp "$BASE_DIR/systemd/omarchy-sec-watcher.service" "$TARGET_SYSTEMD/"
 systemctl --user daemon-reload
-systemctl --user enable --now omarchy-sec-watcher.service
+systemctl --user enable --now omarchy-sec-watcher.service || true
 
-# 5. Insertar widget en shell.json si no existe
-if [ -f "$SHELL_CONFIG" ]; then
-  # Limpiar IDs viejos si existian
-  sed -i '/io.github.maxi8594.omarchy-wazuh/d' "$SHELL_CONFIG" 2>/dev/null || true
-  if ! grep -q "io.github.maxi8594.omarchy-sec" "$SHELL_CONFIG"; then
-    echo "[*] Agregando widget a la barra de Omarchy en $SHELL_CONFIG..."
-    sed -i 's/"id": "io.github.maxi8594.omarchy-fortivpn"/"id": "io.github.maxi8594.omarchy-fortivpn"},\n        {\n          "id": "io.github.maxi8594.omarchy-sec"/' "$SHELL_CONFIG" || true
-  fi
-fi
+# 4. Validar plugin
+echo "[*] Validando plugin con Omarchy CLI..."
+omarchy plugin validate "$TARGET_PLUGIN"
 
-# 6. Recargar plugins de la barra
-if command -v omarchy-shell >/dev/null 2>&1; then
-  omarchy-shell shell rescanPlugins 2>/dev/null || true
-fi
-
+echo ""
 echo "=========================================================="
-echo " ✅ Instalación de Omarchy Sec finalizada con éxito."
-echo " Ejecuta 'omarchy-sec' en tu terminal o mira tu barra."
+echo " ✅ ¡Instalación completada con éxito!"
+echo " 👉 El widget 'Omarchy Sec' ya está activo en tu barra."
+echo " 👉 Ejecuta 'omarchy-sec' en tu terminal para ver opciones."
 echo "=========================================================="

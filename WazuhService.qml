@@ -10,6 +10,7 @@ Item {
   property var settings: ({})
 
   property bool isProtected: false
+  property bool detectorAvailable: true
   property string primarySensor: "Omarchy Sec"
   property string primaryType: "none"
   property int activeSensorCount: 0
@@ -17,18 +18,20 @@ Item {
   property string lastCheck: ""
 
   readonly property string dashboardUrl: String(setting("dashboardUrl", "https://localhost:9001"))
-  readonly property int refreshIntervalSec: intSetting("refreshIntervalSec", 5, 2, 60)
+  readonly property int refreshIntervalSec: intSetting("refreshIntervalSec", 30, 5, 300)
   readonly property bool enableNotifications: setting("enableNotifications", true) === true
 
   readonly property string statusText: {
+    if (!root.detectorAvailable) return "Estado desconocido · falta el paquete omarchy-sec"
     if (root.activeSensorCount > 1) return "Multi-EDR (" + root.activeSensorCount + " activos) · Protegido"
     if (root.activeSensorCount === 1) return root.primarySensor + " · Protegido"
     return "Desprotegido (Sin EDR Activo)"
   }
 
   readonly property color statusColor: {
-    if (root.isProtected) return Color.success || "#22c55e"
-    return Color.urgent || "#ef4444"
+    if (!root.detectorAvailable) return Color.muted
+    if (root.isProtected) return Color.accent
+    return Color.urgent
   }
 
   function setting(name, fallback) {
@@ -68,9 +71,17 @@ Item {
     command: []
     stdout: StdioCollector { id: detectStdout; waitForEnd: true }
     onExited: function(exitCode) {
+      // Sin omarchy-sec-detect en el PATH no sabemos nada. Reportar "desprotegido"
+      // sería una falsa alarma en un widget de seguridad: se marca como desconocido.
+      var raw = String(detectStdout.text || "").trim()
+      if (exitCode !== 0 || !raw) {
+        root.detectorAvailable = false
+        root.isProtected = false
+        root.activeSensorCount = 0
+        return
+      }
+      root.detectorAvailable = true
       try {
-        var raw = String(detectStdout.text || "").trim()
-        if (!raw) return
         var data = JSON.parse(raw)
         root.isProtected = (data.status === "protected")
         root.primarySensor = data.primary || "Omarchy Sec"

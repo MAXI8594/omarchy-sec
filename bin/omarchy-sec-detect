@@ -40,7 +40,7 @@ fi
 
 # 5. Microsoft Defender for Endpoint (mdatp)
 defender="inactive"
-if systemctl is-active mdatp >/dev/null 2>&1 || command -v mdatp >/dev/null 2>&1; then
+if systemctl is-active mdatp >/dev/null 2>&1; then
   defender="active"
 fi
 

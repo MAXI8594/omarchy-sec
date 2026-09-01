@@ -1,6 +1,6 @@
 pkgbase = omarchy-sec
 	pkgdesc = Agnostic EDR/XDR bridge for Omarchy: sensor detection, Wazuh API client and AI incident-response watcher
-	pkgver = 1.0.0
+	pkgver = 1.0.1
 	pkgrel = 1
 	url = https://github.com/MAXI8594/omarchy-sec
 	install = omarchy-sec.install
@@ -16,7 +16,7 @@ pkgbase = omarchy-sec
 	optdepends = omarchy: interactive AI incident-response session (omarchy-agent, omarchy-launch-terminal)
 	optdepends = sudo: enterprise EDR onboarding wizard (omarchy-sec onboard)
 	optdepends = xdg-utils: open the Wazuh dashboard from "omarchy-sec dashboard"
-	source = git+https://github.com/MAXI8594/omarchy-sec.git#tag=v1.0.0
+	source = git+https://github.com/MAXI8594/omarchy-sec.git#tag=v1.0.1
 	sha256sums = SKIP
 
 pkgname = omarchy-sec

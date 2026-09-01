@@ -2,9 +2,23 @@
 
 ## Resumen Ejecutivo
 
-En entornos corporativos modernos, los equipos de SOC (Security Operations Center) y proveedores de MDR (Managed Detection and Response) requieren visibilidad centralizada en tiempo real, auditoría continua y capacidad de contención remota sobre todas las estaciones de trabajo.
+Los equipos de SOC y los proveedores de MDR necesitan visibilidad continua y
+evidencia de cumplimiento sobre todos los endpoints corporativos, incluidas las
+estaciones Linux que sus desarrolladores insisten en usar.
 
-Dado que las estaciones de trabajo en **Omarchy Linux (Arch Linux + Hyprland)** utilizan una base "rolling-release", los vendors rara vez publican paquetes `.pkg.tar.zst` nativos. Esta guía documenta la ingeniería completa y validada para desplegar e integrar los principales agentes de seguridad corporativos (**CrowdStrike Falcon, Microsoft Defender, SentinelOne, Cortex XDR y Wazuh**) en Omarchy, permitiendo que tu máquina reporte telemetría a la nube y sea visible en las consolas globales de tu empresa.
+Los vendors rara vez publican paquetes `.pkg.tar.zst` nativos, así que meter un
+sensor corporativo (**CrowdStrike Falcon, Microsoft Defender, SentinelOne,
+Cortex XDR, Wazuh**) en una estación basada en Arch implica convertir o extraer
+el formato de paquete de otra distribución.
+
+> **Qué es esta guía y qué no.** Reúne los pasos de instalación y enrolamiento
+> documentados por cada vendor, ordenados para Arch Linux. Los comandos son los
+> mismos que `bin/omarchy-sec-onboard` ejecuta o imprime para cada vendor, así el
+> asistente CLI y esta página no divergen. **No** están verificados por el CI de
+> este repositorio: el pipeline no instala ningún sensor comercial, y los vendors
+> cambian instaladores y flags entre versiones. Tomalo como punto de partida para
+> contrastar contra la documentación vigente de tu vendor y tus términos de
+> licencia, no como un blueprint validado.
 
 ---
 
@@ -28,8 +42,8 @@ Dado que las estaciones de trabajo en **Omarchy Linux (Arch Linux + Hyprland)** 
 │              │                                        │                │
 │              ▼                                        ▼                │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │             RESPONDE AUTÓNOMO LOCAL CON AGENTE DE IA             │  │
-│  │                  (`omarchy-sec agent` Bridge)                    │  │
+│  │        RESPUESTA A INCIDENTES ASISTIDA POR IA (LOCAL)            │  │
+│  │   (`omarchy-sec agent` — disparo automático, acción humana)      │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 └────────────────────────────────────────────────────────────────────────┘
 ```
@@ -157,26 +171,50 @@ Prevención de exploits y analítica de seguridad en memoria.
 
 ---
 
-### 5. 🐺 Wazuh Agent (MDR y SIEM Agéntico On-Prem / Cloud)
-Auditoría FIM, evaluación SCA contra CIS benchmarks y detección de CVEs.
+### 5. 🐺 Wazuh Agent (SIEM y MDR On-Prem / Cloud)
+Auditoría FIM, evaluación SCA y detección de vulnerabilidades sobre el
+inventario de paquetes.
 
 * **Instalación:**
   ```bash
   paru -S --needed wazuh-agent
   ```
-* **Registro con el Manager Central:**
+* **Registro con el Manager:**
   ```bash
   sudo /var/ossec/bin/agent-auth -m <IP_O_FQDN_MANAGER> -P "<REGISTRATION_PASSWORD>" -A "$(hostname)"
   sudo sed -i 's/<address>.*<\/address>/<address><IP_O_FQDN_MANAGER><\/address>/' /var/ossec/etc/ossec.conf
   sudo systemctl enable --now wazuh-agent
   ```
+  Omití `-P` cuando el manager no exige password de registro. El stack
+  single-node de este repositorio es uno de esos casos: su sección `auth` tiene
+  `<use_password>no</use_password>`, y lo único que contiene el registro es que
+  `:1515` está enlazado a `127.0.0.1`. `setup.sh` registra el host local con
+  `agent-auth -m 127.0.0.1` en consecuencia. Si reenlazás ese puerto para
+  alcanzar otros equipos, volvé a activar la password de registro.
+* **Alcance de la integridad de archivos:** la config del manager de este
+  repositorio vigila `/etc`, `/usr/bin`, `/usr/sbin`, `/bin`, `/sbin` y `/boot`.
+  `$HOME` no está monitoreado por defecto — agregalo a la sección `syscheck` del
+  agente si necesitás cobertura de manipulación de dotfiles.
 
 ---
 
 ## 🔒 Microsegmentación y Red Zero Trust
 
-Para garantizar que los equipos Omarchy reporten a la nube sin vulnerar la seguridad local:
+Para que la telemetría corporativa siga fluyendo sin ampliar la superficie de
+ataque de la estación:
 
-1. **Salida Exclusiva (Egress Zero Trust):** Todos los agentes modernos se conectan únicamente hacia afuera (Outbound TLS/Port 443 vía HTTPS/gRPC/WebSockets) hacia las IPs y CDNs del fabricante.
-2. **Entrada Bloqueada (Ingress Deny):** No es necesario abrir puertos de entrada en el workstation de Omarchy. La regla por defecto `ufw default deny incoming` se mantiene intacta.
-3. **Coexistencia con Auditd:** En kernels Linux modernos con soporte eBPF (`CONFIG_BPF=y`), el agente no satura el subsistema de auditoría tradicional.
+1. **Egress exclusivo (sensores cloud):** un sensor gestionado desde la nube
+   mantiene una conexión saliente persistente hacia el backend de su fabricante
+   y no necesita ningún puerto entrante. El default de Omarchy
+   (`ufw default deny incoming`) se mantiene intacto.
+2. **Listeners solo en loopback (stack local de Wazuh):** si desplegás el stack
+   `docker/single-node/` en lugar de —o además de— un sensor cloud, ese stack
+   **sí** escucha: seis puertos publicados (`1514`, `1515`, `514/udp`, `55000`,
+   `9200`, `9001`), todos enlazados a `127.0.0.1`. Nada es alcanzable desde la
+   red, pero están escuchando, y cualquier usuario local los alcanza. Ver
+   [`ZERO_TRUST_MICROSEGMENTATION.es.md`](ZERO_TRUST_MICROSEGMENTATION.es.md)
+   para la tabla completa y sus consecuencias.
+3. **Coexistencia con Auditd:** en kernels modernos con soporte eBPF
+   (`CONFIG_BPF=y`) el sensor puede evitar el subsistema de auditoría. Si tu EDR
+   igual lo requiere, configurá `auditd` con `backlog_wait_time` para no
+   estrangular el kernel.

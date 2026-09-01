@@ -2,9 +2,21 @@
 
 ## Executive Overview
 
-Modern enterprise environments require central SOC teams to maintain real-time visibility, continuous compliance, and autonomous incident containment across all corporate endpoints.
+Central SOC teams need continuous visibility and compliance evidence across every corporate endpoint, including the Linux workstations their developers insist on.
 
-While developer workstations running **Omarchy Linux (Arch Linux + Hyprland)** offer unmatched productivity, commercial EDR vendors rarely provide native `.pkg.tar.zst` packages. This guide provides the complete, battle-tested engineering blueprint for deploying and managing enterprise security sensors (**CrowdStrike Falcon, Microsoft Defender, SentinelOne, Cortex XDR, and Wazuh**) on Omarchy workstations, ensuring full fleet management from corporate cloud consoles.
+Commercial EDR vendors rarely ship native `.pkg.tar.zst` packages, so getting a
+corporate sensor (**CrowdStrike Falcon, Microsoft Defender, SentinelOne, Cortex
+XDR, Wazuh**) onto an Arch-based workstation means converting or extracting
+someone else's package format.
+
+> **What this guide is, and is not.** It collects the vendor-documented
+> installation and enrollment steps, arranged for Arch Linux. The commands mirror
+> what `bin/omarchy-sec-onboard` runs or prints for each vendor, so the CLI
+> wizard and this page stay in step. They are **not** verified by this
+> repository's CI — no vendor sensor is installed in the pipeline, and vendors
+> change their installers and flags between versions. Treat this as a starting
+> point to check against your vendor's current documentation and your own
+> licensing terms, not as a validated blueprint.
 
 ---
 
@@ -28,8 +40,8 @@ While developer workstations running **Omarchy Linux (Arch Linux + Hyprland)** o
 │              │                                        │                │
 │              ▼                                        ▼                │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │              AUTONOMOUS LOCAL AI INCIDENT RESPONDER              │  │
-│  │                  (`omarchy-sec agent` Bridge)                    │  │
+│  │            LOCAL AI-ASSISTED INCIDENT RESPONDER                  │  │
+│  │       (`omarchy-sec agent` — auto-triggered, human-driven)        │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 └────────────────────────────────────────────────────────────────────────┘
 ```
@@ -158,25 +170,46 @@ Behavioral threat protection and network analytics.
 ---
 
 ### 5. 🐺 Wazuh Agent (Open Source & Managed SOC)
-Host-based SIEM, FIM, and SCA compliance.
+Host-based SIEM, FIM, and SCA.
 
 * **Installation:**
   ```bash
   paru -S --needed wazuh-agent
   ```
-* **Registration & Cloud Connection:**
+* **Registration & Manager Connection:**
   ```bash
   sudo /var/ossec/bin/agent-auth -m <MANAGER_IP_OR_FQDN> -P "<REGISTRATION_PASSWORD>" -A "$(hostname)"
   sudo sed -i 's/<address>.*<\/address>/<address><MANAGER_IP_OR_FQDN><\/address>/' /var/ossec/etc/ossec.conf
   sudo systemctl enable --now wazuh-agent
   ```
+  Drop `-P` when the manager does not require an enrollment password. The
+  single-node stack in this repository is one such case: its `auth` stanza sets
+  `<use_password>no</use_password>`, and enrollment is contained by the fact
+  that `:1515` is bound to `127.0.0.1`. `setup.sh` enrolls the local host with
+  `agent-auth -m 127.0.0.1` accordingly. If you rebind that port to reach other
+  hosts, turn the enrollment password back on.
+* **File integrity scope:** the manager config in this repository watches
+  `/etc`, `/usr/bin`, `/usr/sbin`, `/bin`, `/sbin` and `/boot`. `$HOME` is not
+  monitored by default — add it to the agent's `syscheck` stanza if you need
+  dotfile tampering coverage.
 
 ---
 
 ## 🔒 Zero Trust Network Microsegmentation
 
-To ensure full corporate compliance without compromising Omarchy security:
+To keep corporate telemetry flowing without widening the workstation's attack
+surface:
 
-1. **Egress-Only TLS / Port 443:** All modern EDR agents maintain persistent, outbound-only connections (HTTPS/gRPC/WebSockets) to cloud telemetry backends.
-2. **Inbound Deny:** No local listening ports are required on Omarchy workstations. Default UFW policy (`ufw default deny incoming`) remains fully intact.
-3. **Auditd Conflict Prevention:** Modern Linux kernels support eBPF probes. If an EDR requires the audit subsystem, configure `auditd` with `backlog_wait_time` to prevent kernel throttling.
+1. **Egress-Only TLS (cloud sensors):** A cloud-managed sensor keeps a
+   persistent outbound connection to its vendor backend and needs no inbound
+   port. Omarchy's default `ufw default deny incoming` stays intact.
+2. **Loopback-only listeners (local Wazuh stack):** If you deploy the
+   `docker/single-node/` stack instead of, or alongside, a cloud sensor, it
+   **does** listen — six published ports (`1514`, `1515`, `514/udp`, `55000`,
+   `9200`, `9001`), every one bound to `127.0.0.1`. Nothing is reachable from
+   the network, but they are listening, and any local user can reach them. See
+   [`ZERO_TRUST_MICROSEGMENTATION.md`](ZERO_TRUST_MICROSEGMENTATION.md) for the
+   full table and the consequences.
+3. **Auditd Conflict Prevention:** Modern Linux kernels support eBPF probes. If
+   an EDR requires the audit subsystem instead, configure `auditd` with
+   `backlog_wait_time` to prevent kernel throttling.

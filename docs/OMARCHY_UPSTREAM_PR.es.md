@@ -1,5 +1,11 @@
 # Propuesta Formal de Pull Request: Seguridad Mejorada y Telemetría EDR para Omarchy
 
+> **Estado: propuesta, no implementada.** Nada de esta página fue enviado ni
+> aceptado por el upstream de Omarchy. Los tres items de abajo son bocetos de
+> cómo podría verse un PR; no existe código para ellos en este repositorio. La
+> versión completa y actual de este argumento — con las preguntas abiertas y los
+> contraargumentos — está en [`PROPOSAL.es.md`](PROPOSAL.es.md).
+
 ## Resumen Ejecutivo
 
 Esta propuesta presenta tres mejoras concretas para robustecer la postura de seguridad de Omarchy manteniendo intacta la filosofía de experiencia de desarrollo fluida y "opinionada" que caracteriza al proyecto de DHH:
@@ -51,3 +57,21 @@ Las estaciones de trabajo de desarrollo ejecutan frecuentemente código de terce
 * **Watcher en Tiempo Real:** Daemon ligero de usuario que procesa alertas de seguridad.
 * **Respuesta Autónoma:** Ante eventos críticos, abre una terminal flotante ejecutando `omarchy-agent` con la telemetría del incidente para contención inmediata.
 * **Widget de Barra:** Icono de escudo en Quickshell con indicador de estado (verde/amarillo/rojo).
+
+---
+
+## Compatibilidad y Riesgo
+
+Las tres propuestas no tienen el mismo riesgo, así que una afirmación global
+sería engañosa. Una por una:
+
+| Propuesta | Alcance | Riesgo |
+| :--- | :--- | :--- |
+| 1. `omarchy firewall` | Un wrapper de CLI sobre `ufw`, que ya pide `sudo` para cambiar reglas. No agrega estado propio. | Bajo. Compatible hacia atrás; `ufw` se sigue pudiendo usar directo. |
+| 2. Endurecimiento de SSHD | **No es user-space.** Escribe `/etc/ssh/sshd_config.d/99-omarchy-hardened.conf` y recarga `sshd`. | **Cambia un default de seguridad y te puede dejar afuera.** Poner `PasswordAuthentication no` en un host donde todavía no instalaste una llave pública funcional te saca la única vía de entrada por SSH. Necesita un chequeo previo de que exista una llave autorizada, una confirmación explícita y un rollback documentado — no un default silencioso. |
+| 3. Telemetría EDR y puente de incidentes | User-space: un unit systemd de *usuario* y un plugin de Quickshell. | Bajo para Omarchy; el watcher necesita acceso al socket de Docker, que es una dependencia real que conviene declarar. |
+
+O sea: las propuestas 1 y 3 son user-space y compatibles hacia atrás. La 2 no es
+ninguna de las dos cosas, y las revisiones anteriores de esta página que
+afirmaban "100% User-Space" y "Cero Cambios Disruptivos" para las tres estaban
+equivocadas.

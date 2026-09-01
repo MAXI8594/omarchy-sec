@@ -28,9 +28,12 @@ Omarchy Linux habilita UFW con política de denegación entrante por defecto (`u
 * Manipulación silenciosa de binarios del sistema o configuraciones de PAM.
 * Inyección de procesos en memoria o demonios comprometidos.
 
-## La Solución: EDR Nativo + Respuesta Autónoma con IA
+## La Solución: EDR Nativo + Respuesta Asistida por IA
 
-Integrar un EDR como **Wazuh, CrowdStrike o Microsoft Defender** con **Omarchy Sec** cierra la brecha:
-* **Telemetría Continua:** Visibilidad en tiempo real de árboles de procesos, syscalls e integridad de archivos.
-* **Detección Instantánea:** Alertas ante sockets anómalos o ejecuciones sospechosas en `/tmp`.
-* **Contención con IA:** El agente de IA local (`omarchy-sec agent`) recibe telemetría viva para aislar la amenaza y revertir archivos sin fricción.
+Integrar un EDR como **Wazuh, CrowdStrike o Microsoft Defender** con **Omarchy Sec** achica la brecha. Lo que eso te da, dicho al nivel que el código sostiene:
+
+* **Telemetría continua:** datos de procesos, paquetes, puertos e integridad de archivos recolectados por el sensor. Con el stack de Wazuh incluido, `syscollector` inventaría hardware, SO, red, paquetes, puertos y procesos cada hora, y `syscheck` hashea los directorios de sistema que tenga configurados.
+* **Detección, según el schedule del colector — no instantánea.** Algunas señales son por evento; otras son por polling. En la config del manager que se despliega acá, por ejemplo, el snapshot de puertos en escucha (`netstat`) y el historial de logins (`last`) corren cada 360 segundos, y los escaneos de FIM cada 12 horas. Para eso esperá minutos, no milisegundos.
+* **Triage asistido por IA:** con nivel de alerta ≥ 10 el agente de código local (`omarchy-sec agent`) se abre con la telemetría precargada, así un desarrollador sin experiencia en seguridad arranca desde algo y no desde un log crudo. Propone contención y puede correr `kill` o `ufw` en esa terminal con vos presente — ver [`AUTONOMOUS_AI_INCIDENT_RESPONSE.es.md`](AUTONOMOUS_AI_INCIDENT_RESPONSE.es.md). No se contiene nada automáticamente, y la reversión de archivos no está implementada.
+
+> **Advertencia que conviene saber antes de confiar en esto:** la config del manager incluida monitorea rutas de sistema (`/etc`, `/usr/bin`, `/usr/sbin`, `/bin`, `/sbin`, `/boot`) para integridad de archivos. `$HOME` — y por lo tanto `~/.config/hypr`, `~/.bashrc` y `~/.ssh`, el vector 3 de arriba — **no** está cubierto por defecto. Agregá esas rutas a la sección `syscheck` del agente si ese es el vector que te importa.

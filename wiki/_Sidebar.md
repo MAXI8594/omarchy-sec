@@ -6,7 +6,7 @@
 * **[📬 Upstream PR Proposals (DHH)](Upstream-PR-Proposals)**
 * **[🏢 Enterprise EDR Playbooks](Enterprise-EDR-Playbooks)**
 * **[🔒 Zero Trust Microsegmentation](Zero-Trust-Microsegmentation)**
-* **[🤖 Autonomous AI Responder](Autonomous-AI-Incident-Response)**
+* **[🤖 AI-Assisted Incident Response](Autonomous-AI-Incident-Response)**
 * **[🧪 DevSecOps Quality Pipeline](DevSecOps-Quality-Pipeline)**
 
 ---

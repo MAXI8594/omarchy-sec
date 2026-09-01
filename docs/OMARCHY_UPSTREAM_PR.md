@@ -1,5 +1,11 @@
 # Upstream Pull Request Proposal: Enhanced Security & EDR Telemetry for Omarchy
 
+> **Status: proposal, not implemented.** Nothing on this page has been submitted
+> to or accepted by upstream Omarchy. The three items below are sketches of what
+> a PR could look like; no code for them exists in this repository. The fuller,
+> current version of this argument — including the open questions and the
+> counter-arguments — is in [`PROPOSAL.md`](PROPOSAL.md).
+
 ## Summary
 
 This proposal outlines three targeted enhancements to strengthen Omarchy's security posture while maintaining its signature opinionated, frictionless developer experience:
@@ -59,5 +65,16 @@ Integrate an optional EDR watcher and Quickshell bar widget:
 ---
 
 ## Compatibility & Safety
-* **100% User-Space:** Implemented via user configurations and Quickshell plugins.
-* **Zero Breaking Changes:** Maintains full backward compatibility with existing Omarchy installations and update paths.
+
+The three proposals do not carry the same risk, so a single blanket claim would
+be misleading. Per proposal:
+
+| Proposal | Scope | Risk |
+| :--- | :--- | :--- |
+| 1. `omarchy firewall` | A CLI wrapper over `ufw`, which already requires `sudo` to change rules. Adds no state of its own. | Low. Backwards compatible; `ufw` remains usable directly. |
+| 2. SSHD hardening | **Not user-space.** Writes `/etc/ssh/sshd_config.d/99-omarchy-hardened.conf` and reloads `sshd`. | **This changes a security default and can lock you out.** Setting `PasswordAuthentication no` on a host where you have not yet installed a working public key removes your only way back in over SSH. It needs a pre-flight check for an authorized key, an explicit prompt, and a documented rollback — not a silent default. |
+| 3. EDR telemetry & incident bridge | User-space: a systemd *user* unit and a Quickshell plugin. | Low for Omarchy itself; the watcher needs Docker socket access, which is a real dependency worth stating. |
+
+So: proposals 1 and 3 are user-space and backwards compatible. Proposal 2 is
+neither, and earlier revisions of this page claiming "100% User-Space" and "Zero
+Breaking Changes" across all three were wrong.

@@ -28,9 +28,12 @@ Omarchy Linux enables UFW with an inbound deny policy by default (`ufw default d
 * Unnoticed modifications to system binary checksums or PAM configurations.
 * In-memory process injections or hijacked background daemons.
 
-## The Solution: Native EDR + Autonomous AI Response
+## The Solution: Native EDR + AI-Assisted Response
 
-Integrating an EDR like **Wazuh, CrowdStrike, or Microsoft Defender** with **Omarchy Sec** bridges the gap:
-* **Continuous Behavioral Telemetry:** Real-time visibility into process trees, syscalls, and file integrity.
-* **Instant Detection:** Immediate alarms on abnormal socket bindings or unexpected `/tmp` execution.
-* **AI-Assisted Containment:** Gives the local AI coding agent (`omarchy-sec agent`) live telemetry to isolate threats and rollback files without requiring deep security expertise from the developer.
+Integrating an EDR like **Wazuh, CrowdStrike, or Microsoft Defender** with **Omarchy Sec** narrows the gap. What that buys you, stated at the level the code supports:
+
+* **Continuous telemetry:** process, package, port and file-integrity data collected by the sensor. With the bundled Wazuh stack, `syscollector` inventories hardware, OS, network, packages, ports and processes hourly, and `syscheck` hashes the system directories it is configured to watch.
+* **Detection, on the collector's own schedule — not instantly.** Some signals are event-driven; others are polled. In the shipped manager config, for example, the listening-port snapshot (`netstat`) and the login history (`last`) run every 360 seconds, and FIM scans every 12 hours. Expect minutes, not milliseconds, for those.
+* **AI-assisted triage:** at alert level ≥ 10 the local coding agent (`omarchy-sec agent`) opens with live telemetry preloaded, so a developer without security expertise gets a starting point instead of a raw log. It proposes containment and can run `kill` or `ufw` in that terminal with you present — see [`AUTONOMOUS_AI_INCIDENT_RESPONSE.md`](AUTONOMOUS_AI_INCIDENT_RESPONSE.md). Nothing is contained automatically, and file rollback is not wired up.
+
+> **Caveat worth knowing before you rely on this:** the bundled manager config monitors system paths (`/etc`, `/usr/bin`, `/usr/sbin`, `/bin`, `/sbin`, `/boot`) for file integrity. `$HOME` — and therefore `~/.config/hypr`, `~/.bashrc` and `~/.ssh`, vector 3 above — is **not** covered out of the box. Add those paths to the agent's `syscheck` stanza if that vector is the one you care about.

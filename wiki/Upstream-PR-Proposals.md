@@ -1,6 +1,11 @@
 # 📬 Upstream PR Proposals for Omarchy & DHH
 
-To bring these enterprise-grade security capabilities to the entire Omarchy community, we propose three concrete, targeted pull requests to the upstream Omarchy repository:
+> **Status: proposals, not implemented.** None of this has been submitted to or
+> accepted by upstream Omarchy, and no code for these three items exists in the
+> `omarchy-sec` repository. They are sketches meant to start a discussion.
+
+Three concrete, targeted changes we would like to discuss with the upstream
+Omarchy maintainers:
 
 ---
 
@@ -39,4 +44,17 @@ MaxAuthTries 3
 
 ### Rationale
 Omarchy already provides crash diagnostics (`omarchy agent crash <pid>`). We can expand `omarchy-agent` with a security incident skill:
-* When a high-severity security anomaly is detected (Level >= 10), Omarchy launches the coding agent with pre-populated incident telemetry, allowing the AI to investigate the root cause and execute containment.
+* When a high-severity security anomaly is detected (Level >= 10), Omarchy launches the coding agent with pre-populated incident telemetry, so the AI can investigate the root cause and propose containment in a terminal the user is sitting in front of. The trigger is automatic; the containment is not, and deliberately so.
+
+---
+
+## Risk, per proposal
+
+| Proposal | Scope | Risk |
+| :--- | :--- | :--- |
+| 1. `omarchy firewall` | CLI wrapper over `ufw`, which already requires `sudo`. No state of its own. | Low. Backwards compatible. |
+| 2. SSHD hardening | **Not user-space** — writes `/etc/ssh/sshd_config.d/` and reloads `sshd`. | **Changes a security default and can lock you out** of SSH if no working public key is installed first. Needs a pre-flight key check, an explicit prompt, and a documented rollback. |
+| 3. Incident bridge | User-space: a systemd *user* unit plus a Quickshell plugin. | Low; the watcher does need Docker socket access. |
+
+Proposals 1 and 3 are user-space and backwards compatible. Proposal 2 is
+neither.

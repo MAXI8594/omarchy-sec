@@ -1,6 +1,13 @@
 # 🏢 Enterprise EDR & MDR Deployment Playbooks
 
-Step-by-step installation and cloud onboarding playbooks for corporate EDR sensors on Arch Linux / Omarchy:
+Step-by-step installation and cloud onboarding playbooks for corporate EDR
+sensors on Arch Linux / Omarchy.
+
+> **Scope.** These are the vendor-documented steps, arranged for Arch, and they
+> mirror what `bin/omarchy-sec-onboard` runs or prints. They are **not** verified
+> by this project's CI — no vendor sensor is installed in the pipeline, and
+> vendors change installers and flags between versions. Check them against your
+> vendor's current documentation.
 
 ---
 
@@ -76,4 +83,11 @@ Step-by-step installation and cloud onboarding playbooks for corporate EDR senso
   sudo /var/ossec/bin/agent-auth -m <MANAGER_IP> -A "$(hostname)"
   sudo systemctl enable --now wazuh-agent
   ```
+  Add `-P "<password>"` when the manager requires an enrollment password. The
+  single-node stack shipped with this project does not: its `auth` stanza sets
+  `<use_password>no</use_password>`, and enrollment is contained only by
+  `:1515` being bound to `127.0.0.1`.
+* **File integrity scope:** the shipped manager config watches `/etc`,
+  `/usr/bin`, `/usr/sbin`, `/bin`, `/sbin` and `/boot`. `$HOME` is not monitored
+  by default — add it to the agent's `syscheck` stanza for dotfile coverage.
 * **CLI Wizard:** `omarchy-sec onboard wazuh`

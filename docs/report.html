@@ -137,29 +137,29 @@
   <div class="header">
     <div class="title-block">
       <h1>🛡️ OMARCHY SEC</h1>
-      <div class="subtitle">Arquitectura Empresarial de EDR/XDR & Respuesta Autónoma con IA en Arch Linux</div>
+      <div class="subtitle">Integración de EDR/XDR y Respuesta a Incidentes Asistida por IA en Arch Linux</div>
     </div>
     <div>
-      <span class="badge">v1.0.0 · Production Ready</span>
+      <span class="badge">v1.0.0 · Proyecto personal · Sin auditoría externa</span>
     </div>
   </div>
 
   <!-- RESUMEN EJECUTIVO -->
   <h2>1. Resumen Ejecutivo</h2>
   <p>
-    <strong>Omarchy Sec</strong> es una plataforma de seguridad agnóstica de grado empresarial y respuesta autónoma a incidentes diseñada específicamente para estaciones de trabajo <strong>Omarchy Linux (Arch Linux + Hyprland)</strong>.
+    <strong>Omarchy Sec</strong> es una integración de seguridad de endpoint, agnóstica de proveedor, para estaciones de trabajo <strong>Omarchy Linux (Arch Linux + Hyprland)</strong>. Es un proyecto open source personal, sin auditoría de seguridad externa.
   </p>
   <p>
-    Permite integrar y monitorear agentes corporativos de <strong>CrowdStrike Falcon, Microsoft Defender (MDE), SentinelOne, Palo Alto Cortex XDR y Wazuh</strong>, resolviendo el desafío de compatibilidad en distribuciones rolling-release y garantizando que los equipos reporten telemetría en tiempo real a las consolas centrales del SOC corporativo bajo un estricto modelo <strong>Zero Trust</strong>.
+    Consta de un motor de detección que reporta qué sensor EDR está activo (<strong>CrowdStrike Falcon, Microsoft Defender, SentinelOne, Cortex XDR, Wazuh, Falco/Tetragon, auditd</strong>), un cliente REST para la API de Wazuh, un stack single-node de Wazuh en Docker, un widget de barra para Quickshell y un watcher que abre el agente de código con el contexto del incidente cargado. Documenta además los procedimientos de conversión de paquetes (<code>debtap</code>, <code>rpmextract</code>) que hacen instalable un sensor corporativo en una distribución rolling-release.
   </p>
 
   <div class="highlight-box accent">
     <strong>Pilares Clave:</strong>
     <ul>
-      <li><strong>Agnóstico & Multi-Sensor:</strong> Detecta y unifica el monitoreo de cualquier sensor EDR instalado sin configuraciones complejas.</li>
-      <li><strong>Respuesta Autónoma con IA ("Call Agent"):</strong> Conexión en tiempo real con la API de Wazuh (:55000) e historial forense para investigación y contención activa (kill processes, firewall isolate).</li>
-      <li><strong>Zero Trust Microsegmentation:</strong> Telemetría saliente exclusiva (Egress TLS/443); 0 puertos abiertos requeridos en la estación de trabajo.</li>
-      <li><strong>DevSecOps Verified:</strong> 100% aprobado en SAST, IaC, Secrets scanning, SCA y DAST.</li>
+      <li><strong>Agnóstico &amp; Multi-Sensor:</strong> un único comando (<code>omarchy-sec-detect</code>) reporta en JSON qué sensores están activos o inactivos, consultando units de systemd, procesos y contenedores. No extrae salud ni versión del motor del vendor: eso no se obtiene de un chequeo de estado de unit.</li>
+      <li><strong>Respuesta a incidentes asistida por IA ("Call Agent"):</strong> el disparo es automático (alerta de nivel &ge; 10), la acción no. El agente abre una terminal interactiva con la API de Wazuh (:55000), el historial de <code>alerts.json</code>, <code>ss -tuln</code> y <code>ps aux</code> precargados, y propone contención con el usuario presente. El bloque <code>&lt;active-response&gt;</code> de Wazuh está comentado: nada se mata ni se bloquea solo.</li>
+      <li><strong>Microsegmentación:</strong> los sensores cloud son solo de salida. El stack local de Wazuh <em>sí</em> escucha: seis puertos publicados, todos enlazados a <code>127.0.0.1</code>. Ninguno queda expuesto a la red — que no es lo mismo que "cero puertos abiertos".</li>
+      <li><strong>Controles DevSecOps:</strong> ShellCheck, Gitleaks, Semgrep y Trivy (IaC) más dos controles funcionales. <strong>No hay SCA</strong> — nada escanea dependencias ni imágenes de contenedor.</li>
     </ul>
   </div>
 
@@ -183,8 +183,8 @@
 │              │                                        │                │
 │              ▼                                        ▼                │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │             RESPUESTA AUTÓNOMA LOCAL CON AGENTE DE IA            │  │
-│  │                  (`omarchy-sec agent` Bridge)                    │  │
+│  │          RESPUESTA A INCIDENTES ASISTIDA POR IA (LOCAL)          │  │
+│  │    (`omarchy-sec agent` — disparo automático, acción humana)     │  │
 │  │       API REST (:55000) • alerts.json • Sockets • Procesos       │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 └────────────────────────────────────────────────────────────────────────┘
@@ -240,63 +240,100 @@
   <!-- RESPUESTA A INCIDENTES CON IA -->
   <h2>4. Mecanismo de Respuesta Autónoma con IA ("Call Agent")</h2>
   <p>
-    A diferencia de los paneles tradicionales que solo ofrecen indicadores estáticos, <strong>Omarchy Sec</strong> incorpora un puente interactivo directo entre el motor EDR y el Agente de IA de Omarchy:
+    A diferencia de los paneles tradicionales, que solo muestran un indicador estático, <strong>Omarchy Sec</strong> abre el agente de código de Omarchy con el contexto del incidente ya cargado. Importa distinguir qué es automático y qué no:
   </p>
 
   <div class="highlight-box">
     <h3>Flujo de Operación del Agente SOC:</h3>
     <ol>
-      <li><strong>Autenticación con la API REST (:55000):</strong> Genera tokens JWT dinámicos para consultar el estado del endpoint, FIM (Syscheck) y evaluaciones de configuración de seguridad (SCA).</li>
-      <li><strong>Volcado de Telemetría Forense:</strong> Inyecta las últimas alertas registradas en <code>alerts.json</code>, sockets abiertos (<code>ss -tuln</code>) y procesos de alto consumo.</li>
-      <li><strong>Capacidad de Contención Inmediata:</strong> El agente puede aislar direcciones IP maliciosas mediante <code>ufw/nftables</code>, matar procesos sospechosos (<code>kill</code>) y sugerir reversión de archivos vía snapshots de Btrfs/Snapper.</li>
+      <li><strong>Disparo automático:</strong> <code>omarchy-sec-watcher</code> sigue <code>alerts.json</code>. Con nivel &ge; 7 emite una notificación de escritorio; con nivel &ge; 10 además lanza el agente. Ambos umbrales son configurables por variable de entorno.</li>
+      <li><strong>Autenticación con la API REST (:55000):</strong> obtiene un token bearer de <code>/security/user/authenticate</code> y lo cachea 10 minutos en <code>$XDG_RUNTIME_DIR</code> (directorio 0700, archivo 0600). Las credenciales las genera <code>setup.sh</code> al azar; no hay password por defecto.</li>
+      <li><strong>Volcado de telemetría:</strong> hostname, sensor primario, la alerta disparadora, el resumen de <code>/agents</code>, las últimas 8 alertas de <code>alerts.json</code> (nivel, regla, descripción, timestamp, IP, archivo — <em>sin</em> campo de técnica MITRE), 12 líneas de <code>ss -tuln</code> y 8 de <code>ps aux --sort=-%cpu</code>.</li>
+      <li><strong>Contención con el usuario presente:</strong> la sesión es interactiva. El agente propone o ejecuta contención en esa terminal — <code>kill</code>, <code>ufw</code> — sujeta a tu confirmación y tu password de sudo. No hay respuesta activa de Wazuh configurada, y el proyecto <strong>no</strong> ejecuta reversiones con Btrfs/Snapper: recuperar un archivo manipulado es un paso manual.</li>
     </ol>
   </div>
 
   <!-- PRE-PR QUALITY GATES -->
   <h2>5. Controles DevSecOps y Calidad Pre-PR</h2>
-  <p>El proyecto cuenta con una suite automatizada de pruebas ejecutada en cada commit y Pull Request:</p>
+  <p>
+    Corren dos cosas distintas: <code>tests/run_tests.sh</code> en local, a demanda, y
+    <code>.github/workflows/security-ci.yml</code> en cada push y Pull Request a <code>main</code>.
+    La tabla lista qué corre dónde y qué bloquea, no un resultado histórico.
+  </p>
   <table>
     <thead>
       <tr>
-        <th>Control de Seguridad</th>
-        <th>Herramienta Utilizada</th>
-        <th>Resultado Obtenido</th>
+        <th>Control</th>
+        <th>Herramienta</th>
+        <th>Dónde corre</th>
+        <th>¿Bloquea?</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td><strong>SAST (Static Analysis)</strong></td>
-        <td>ShellCheck & Semgrep</td>
-        <td><span class="tag tag-green">✓ 0 Errores / 0 Warnings</span></td>
+        <td><strong>SAST — shell</strong></td>
+        <td>ShellCheck</td>
+        <td>Local (<code>bin/</code> + <code>scripts/</code>) y CI (<code>bin/</code>)</td>
+        <td><span class="tag tag-green">Sí</span></td>
       </tr>
       <tr>
-        <td><strong>Validación de Esquema QML</strong></td>
+        <td><strong>SAST — reglas genéricas</strong></td>
+        <td>Semgrep (<code>p/security-audit</code>, <code>p/secrets</code>, <code>p/bash</code>)</td>
+        <td>Solo CI</td>
+        <td><span class="tag tag-green">Sí</span></td>
+      </tr>
+      <tr>
+        <td><strong>Escaneo de secretos</strong></td>
+        <td>Gitleaks</td>
+        <td>Local y CI</td>
+        <td><span class="tag tag-green">Sí</span></td>
+      </tr>
+      <tr>
+        <td><strong>IaC &amp; misconfiguración</strong></td>
+        <td>Trivy <code>config</code> (HIGH, CRITICAL)</td>
+        <td>Local (<code>--exit-code 1</code>) y CI</td>
+        <td><span class="tag tag-green">Sí en local</span> <span class="tag tag-blue">No en CI</span></td>
+      </tr>
+      <tr>
+        <td><strong>Validación de plugin y manifiesto QML</strong></td>
         <td>Omarchy Plugin Validator</td>
-        <td><span class="tag tag-green">✓ 100% Compatible con Quattro Shell</span></td>
+        <td>Solo local — el CLI de Omarchy no existe en un runner de GitHub</td>
+        <td><span class="tag tag-green">Sí</span></td>
       </tr>
       <tr>
-        <td><strong>Escaneo de Secretos</strong></td>
-        <td>Gitleaks & TruffleHog</td>
-        <td><span class="tag tag-green">✓ 0 Llaves o Credenciales Filtradas</span></td>
+        <td><strong>Funcional: motor de detección</strong></td>
+        <td><code>bin/omarchy-sec-detect</code></td>
+        <td>Solo local</td>
+        <td><span class="tag tag-green">Sí</span> — verifica que el script corra, no que haya un sensor</td>
       </tr>
       <tr>
-        <td><strong>IaC & Misconfiguration</strong></td>
-        <td>Trivy Scanner</td>
-        <td><span class="tag tag-green">✓ Docker Compose Seguro</span></td>
-      </tr>
-      <tr>
-        <td><strong>DAST (Dynamic Testing)</strong></td>
-        <td>Curl TLS Health Check</td>
-        <td><span class="tag tag-green">✓ Puerto 9001 Activo (HTTP 302/200)</span></td>
+        <td><strong>Alcanzabilidad del dashboard</strong></td>
+        <td><code>curl</code> a <code>https://localhost:9001</code></td>
+        <td>Solo local</td>
+        <td><span class="tag tag-blue">Se saltea con el stack apagado</span></td>
       </tr>
     </tbody>
   </table>
+
+  <div class="highlight-box">
+    <strong>Límites de este pipeline, dichos explícitamente:</strong>
+    <ul>
+      <li><strong>No hay SCA.</strong> Nada escanea dependencias ni imágenes de contenedor, en ninguno de los dos pipelines, pese a que el nombre del workflow de CI lo menciona.</li>
+      <li><strong>No se usa TruffleHog.</strong> Solo corre Gitleaks; versiones anteriores de este informe listaban ambos.</li>
+      <li><strong>La sonda del dashboard no es DAST.</strong> Pregunta si el puerto responde. No hace fuzzing ni prueba la aplicación.</li>
+      <li><strong>Los controles locales se saltean en silencio si la herramienta no está instalada</strong>, y la corrida igual sale con código 0.</li>
+    </ul>
+  </div>
 
   <!-- COMANDOS Y REPOSITORIO -->
   <h2>6. Repositorio Oficial y Comandos CLI</h2>
   <p>
     <strong>Repositorio en GitHub:</strong> <a href="https://github.com/MAXI8594/omarchy-sec">https://github.com/MAXI8594/omarchy-sec</a><br>
-    <strong>Instalación Rápida:</strong> <code>git clone https://github.com/MAXI8594/omarchy-sec && cd omarchy-sec && ./install.sh</code>
+    <strong>Instalación:</strong> <code>git clone https://github.com/MAXI8594/omarchy-sec &amp;&amp; cd omarchy-sec &amp;&amp; ./setup.sh</code>
+  </p>
+  <p>
+    <code>setup.sh</code> es el asistente completo: genera credenciales aleatorias, levanta el stack de Wazuh en Docker e invoca a <code>install.sh</code>.
+    <code>install.sh</code> por sí solo instala únicamente los binarios CLI, el widget de barra y el servicio systemd de usuario — sin stack, no hay dashboard ni API que consultar.
   </p>
 
   <!-- FOOTER -->

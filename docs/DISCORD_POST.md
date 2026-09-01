@@ -118,7 +118,11 @@ the block below, press Shift+Enter, type three backticks again:**
 ```
 **🔍 What I got wrong, before someone finds it**
 
-I audited my own repo before bringing this here, and the pipeline I was bragging about was not doing its job:
+I audited my own repo before bringing this here. The worst of it first:
+
+**A command injection any local user could reach.** The incident-triage command built its terminal invocation as a double-quoted string and interpolated the assembled prompt into it inside single quotes. That prompt embeds `ps aux` output — the argv of *other users'* processes. A single quote in there closes the literal and the rest runs as shell code. No alert required: an unprivileged user only needs a process running when someone runs the triage command. Fixed, and reproduced both ways to prove it.
+
+And the pipeline I was bragging about was not doing its job:
 
 • The dashboard check printed **PASS in both branches** — an unreachable console reported "ready for deployment". It could not fail.
 • Trivy ran with `--exit-code 0`. A CRITICAL misconfiguration still printed "passed security audit".

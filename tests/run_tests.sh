@@ -18,7 +18,13 @@ echo ""
 # 1. SAST: ShellCheck
 echo "[1/6] SAST: Shell Script Analysis (shellcheck)..."
 if command -v shellcheck >/dev/null 2>&1; then
-  if find "$BASE_DIR/bin" "$BASE_DIR/scripts" -type f -executable -exec shellcheck {} +; then
+  # Se listan solo los directorios que existen: scripts/ se fue con el wiki, y
+  # un find contra una ruta inexistente hacia fallar el gate por el motivo
+  # equivocado.
+  SC_DIRS=()
+  for d in bin scripts; do [ -d "$BASE_DIR/$d" ] && SC_DIRS+=("$BASE_DIR/$d"); done
+  if find "${SC_DIRS[@]}" -type f -executable -exec shellcheck {} + \
+     && shellcheck "$BASE_DIR"/*.sh "$BASE_DIR"/tests/*.sh; then
     echo "  ✓ PASS: ShellCheck: 0 issues found across all bash scripts"
     PASSED=$((PASSED + 1))
   else

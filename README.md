@@ -24,11 +24,11 @@ Following the split suggested by the Omarchy maintainer, Omarchy Sec ships as th
 | :-- | :--- | :--- | :--- | :--- |
 | 1 | **Quickshell bar widget** — the shield in the bar and its inspection panel | [`MAXI8594/omarchy-sec-plugin`](https://github.com/MAXI8594/omarchy-sec-plugin) | [Omarchy Plugin Marketplace](https://plugins.omarchy.org/) → `omarchy plugin add` | Submission pending — see [`docs/PUBLISHING.md`](docs/PUBLISHING.md) |
 | 2 | **System config proposals** — `omarchy firewall`, SSH hardening, EDR hooks | [`docs/OMARCHY_UPSTREAM_PR.md`](docs/OMARCHY_UPSTREAM_PR.md) | RFC / design doc discussion in the Omarchy Discord, channel `#omarchy-security` | Shared for discussion |
-| 3 | **`omarchy-sec` CLI + watcher service** — detection engine, Wazuh API bridge, systemd user unit | **this repository** | AUR package → `paru -S omarchy-sec` | Packaging in progress |
+| 3 | **`omarchy-sec` CLI + watcher service** — detection engine, Wazuh API bridge, systemd user unit | **this repository** | AUR package `omarchy-sec` **1.0.1** → `paru -S omarchy-sec` | Packaging in progress |
 
 > **The widget no longer lives in this repository.** It was extracted so that the plugin repo contains nothing but QML, a manifest, a README and a license. The marketplace requires one public repository per plugin, and its automated scanner flags the `installer`, `service-management` and `package-manager` capabilities for manual review — which an installer script and a systemd unit sitting in the same repo would trigger on every release.
 
-The three pieces are independently usable, with one dependency between them: **the widget reads its state from the `omarchy-sec` CLI.** Without the CLI installed, the shield renders in its muted *unknown* state rather than reporting a protection status it never measured.
+The three pieces are independently usable, with one dependency between them: **the widget reads its state from `/usr/bin/omarchy-sec-detect`, and from nowhere else.** It re-checks that exact path before every run — a regular file, not a symlink, owned by `root`, not group- or world-writable, executable, under 1 MiB — and if any of that fails, the shield renders in its muted *unknown* state rather than reporting a status it never measured. So deliverable 3 has to arrive **as a package**; a copy in `~/.local/bin` is not something the widget will read. The reasoning is [below](#why-the-widget-only-trusts-usrbin).
 
 ---
 
@@ -60,7 +60,7 @@ Explore the complete technical specifications, architectural blueprints, and ven
 * 🏢 **Central SOC Fleet Visibility:** Enables corporate SOCs and MDR providers (Azure Defender, Falcon Cloud, SentinelOne Management Console) to monitor and protect Omarchy workstations seamlessly.
 * 🛡️ **Agnostic Multi-Sensor Engine:** Auto-detects and aggregates telemetry from **CrowdStrike Falcon, Microsoft Defender (MDE), SentinelOne, Cortex XDR, and Wazuh**.
 * ⚡ **1-Click Self-Hosted SOC (`./setup.sh`):** Deploys a full-stack Wazuh XDR in Docker (in Dark Mode on `https://localhost:9001`) with host agent enrollment.
-* 📊 **Adaptive Quickshell Bar Widget:** Distributed separately through the [Omarchy Plugin Marketplace](https://plugins.omarchy.org/). Displays `Omarchy Sec` by default and dynamically adapts its title and action buttons when inspecting specific sensors; it reads its state from the `omarchy-sec` CLI.
+* 📊 **Adaptive Quickshell Bar Widget:** Distributed separately through the [Omarchy Plugin Marketplace](https://plugins.omarchy.org/). Displays `Omarchy Sec` by default and dynamically adapts its title and action buttons when inspecting specific sensors; it reads its state from the packaged CLI at `/usr/bin/omarchy-sec-detect`, and stays *unknown* when that binary is absent or fails its ownership check.
 * 🤖 **Autonomous AI Incident Responder ("Call Agent"):** Bridges live SIEM/EDR REST API data to the AI coding agent for instant forensic triage and defensive containment.
 * 🔒 **Zero Trust Network Security:** Egress-only TLS/443 telemetry to corporate SOC clouds; zero inbound ports exposed to the network — the self-hosted Wazuh SOC stack binds exclusively to `127.0.0.1` (see [`docker-compose.yml`](docker/single-node/docker-compose.yml)).
 * 🧼 **100% User-Space:** Strictly adheres to Omarchy rules—never touches `/usr/share/omarchy/`, ensuring safe updates via `omarchy update`.
@@ -160,7 +160,7 @@ The AI can immediately differentiate false positives, kill unauthorized reverse 
 
 ### 1. Install the `omarchy-sec` CLI (AUR)
 
-The CLI and its user-level watcher service are packaged for the AUR. Once the package is published:
+The CLI and its user-level watcher service are packaged for the AUR — `packaging/aur/`, currently **`1.0.1`**, built from the `v1.0.1` tag. Once the package is published:
 
 ```bash
 paru -S omarchy-sec        # or: yay -S omarchy-sec
@@ -172,13 +172,27 @@ Then enable the background watcher for your user:
 systemctl --user enable --now omarchy-sec-watcher.service
 ```
 
-> **The AUR package is still being prepared.** Until it lands, install from a git checkout:
+**This is the step that makes the bar widget work.** The package installs the binaries into `/usr/bin`, which is the only place the widget reads them from.
+
+> **Why `1.0.1` and not `1.0.0`.** The `v1.0.0` tag points at a commit from before the command injection in `bin/omarchy-sec-agent` was fixed, so publishing it would have shipped the vulnerable CLI. The old tag was left where it is and superseded by a new one rather than moved, so anyone who already fetched `v1.0.0` still gets the bytes they verified.
+
+#### Why the widget only trusts `/usr/bin`
+
+The widget's job is to tell you whether this machine is protected. An answer sourced from a binary anyone could have swapped is not an answer — so the widget accepts one path and only one, `/usr/bin/omarchy-sec-detect`, and re-checks it before each run: regular file, not a symlink, owned by `root`, no group or other write bit, executable, under 1 MiB. `/usr/bin/omarchy-sec`, behind the panel's **Call Agent** button, goes through the same check separately — inheriting trust from a sibling in the same directory is not a check. Failing it disables the button, not the shield.
+
+An earlier version also accepted `~/.local/bin/omarchy-sec-detect`. A marketplace reviewer named the hole: validating a path and then executing it is check-then-execute, and a file in a directory the user can write is a file that can be replaced between the two steps (TOCTOU). The candidate was dropped rather than patched. `/usr/bin` is writable only by root, and root can replace the widget itself — so root sits outside the model either way.
+
+The cost is real and deliberate: install from a checkout and the shield stays grey. That is the correct trade for a security indicator. *"I don't know"* is a true statement; a green shield sourced from an attacker-writable file is not.
+
+> **The AUR package is still being prepared.** Until it lands, you can run the CLI and the Docker stack from a git checkout:
 > ```bash
 > git clone https://github.com/MAXI8594/omarchy-sec.git
 > cd omarchy-sec
 > ./install.sh
 > ```
 > `install.sh` writes only inside `~/.local/` and `~/.config/` — no root, and it never touches `/usr/share/omarchy/`, so `omarchy update` is unaffected.
+>
+> **It does not feed the widget.** The binaries land in `~/.local/bin`, the widget does not look there, and the shield stays in *unknown* until the package is installed. Everything else is unaffected: `omarchy-sec status`, `onboard`, `agent`, `api`, the watcher service and `setup.sh` all work the same from a checkout.
 
 ### 2. Install the bar widget (Marketplace)
 
@@ -195,7 +209,7 @@ omarchy plugin disable io.github.maxi8594.omarchy-sec
 omarchy plugin remove  io.github.maxi8594.omarchy-sec
 ```
 
-Install step 1 first: the widget is a thin front end and shows a muted *unknown* shield until the `omarchy-sec` CLI is present to measure anything.
+Install step 1 first, **as a package**: the widget is a thin front end and shows a muted *unknown* shield until `/usr/bin/omarchy-sec-detect` exists and passes validation — see [Why the widget only trusts `/usr/bin`](#why-the-widget-only-trusts-usrbin). A checkout install does not satisfy it.
 
 ### 3. (Optional) Deploy the self-hosted Wazuh SOC
 

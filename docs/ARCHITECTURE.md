@@ -23,9 +23,19 @@
    [`omarchy-sec-plugin`](https://github.com/MAXI8594/omarchy-sec-plugin)
    repository, installed by `install.sh` via `omarchy plugin add` into
    `~/.config/omarchy/plugins/io.github.maxi8594.omarchy-sec/`. It polls
-   `omarchy-sec-detect` on a configurable interval (default 30s) and renders
-   sensor status; it reports "unknown" rather than "unprotected" when the CLI is
-   missing.
+   `/usr/bin/omarchy-sec-detect` on a configurable interval (default 30s) and
+   renders sensor status. That path is the only one it accepts, and it is
+   re-validated before every run — regular file, not a symlink, `root`-owned,
+   not group- or world-writable, executable, under 1 MiB — because validating a
+   user-writable path and then executing it leaves a TOCTOU window. The agent
+   binary behind **Call Agent**, `/usr/bin/omarchy-sec`, is validated
+   separately. The detector runs inside a named `systemd-run --user --scope`
+   under a `timeout` and a 64 KiB `head -c` budget, so a hung or noisy helper is
+   cut off by the OS and the whole descendant tree dies with the scope. Any
+   failure — missing binary, failed validation, non-zero exit, non-conforming
+   JSON — reports "unknown" rather than "unprotected". A CLI installed only into
+   `~/.local/bin` therefore leaves the widget in "unknown"; the packaged CLI in
+   `/usr/bin` is what feeds it.
 4. **AI Responder Layer:** `omarchy-sec-watcher`, a systemd *user* service,
    tails the manager's `alerts.json` through `docker exec`. At level ≥ 7 it
    raises a desktop notification; at level ≥ 10 it additionally runs

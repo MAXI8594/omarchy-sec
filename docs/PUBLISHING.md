@@ -54,6 +54,8 @@ omarchy plugin disable io.github.maxi8594.omarchy-sec
 omarchy plugin remove  io.github.maxi8594.omarchy-sec
 ```
 
+> **A clean machine will show the widget in its muted *unknown* state, and that is correct.** The widget reads `/usr/bin/omarchy-sec-detect` and refuses every other path — it re-checks that it is a `root`-owned, non-symlink, non-world-writable executable before each run, because validating a user-writable path and then executing it is a TOCTOU window. So there is nothing for it to measure until the `omarchy-sec` package is installed; a checkout install into `~/.local/bin` does not feed it. Install the package before judging whether the widget works. Reasoning: [Why the widget only trusts `/usr/bin`](../README.md#why-the-widget-only-trusts-usrbin).
+
 > ⚠️ **The shell caches compiled QML.** It hot-reloads on file changes in `~/.config/omarchy/plugins/`, but a QML edit will not actually take effect until you run:
 > ```bash
 > omarchy restart shell

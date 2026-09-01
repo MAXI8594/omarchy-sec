@@ -59,6 +59,43 @@ The name `omarchy-sec` was unclaimed when this was written
 results). Check again before importing.
 
 
+## namcap output, and why the four warnings stand
+
+`namcap` on the `PKGBUILD` reports nothing. On the built package it reports four:
+
+    omarchy-sec W: Dependency included, but may not be needed ('curl')
+    omarchy-sec W: Dependency included, but may not be needed ('inetutils')
+    omarchy-sec W: Dependency included, but may not be needed ('jq')
+    omarchy-sec W: Dependency included, but may not be needed ('libnotify')
+
+All four are false positives, and the reason is structural rather than a
+judgement call: namcap infers dependencies from the dynamic linkage of ELF
+binaries. Every file this package ships is a bash script — verified with `file`
+on the built package, seven scripts and zero ELF objects — so there is no
+linkage to read and namcap cannot see a single call. It is not disagreeing with
+the dependency list; it has no way to evaluate it.
+
+Each one is invoked by name in the shipped scripts:
+
+| Package | Binary | Uses | Where |
+| :--- | :--- | --: | :--- |
+| `curl` | `curl` | 5 | `omarchy-sec-wazuh-api` |
+| `jq` | `jq` | 19 | `omarchy-sec-agent`, `omarchy-sec-wazuh-api`, `omarchy-sec-watcher` |
+| `libnotify` | `notify-send` | 5 | `omarchy-sec-watcher`, `omarchy-sec-agent` |
+| `inetutils` | `hostname` | 2 | `omarchy-sec-onboard`, `omarchy-sec-agent` |
+
+Dropping any of them breaks a path at runtime with a "command not found" the
+user did not ask for. They stay.
+
+### Running namcap on this machine
+
+`namcap` is a bash wrapper that calls `python3 -m namcap`, and `python` here
+resolves to mise's interpreter, which does not have the module. Run it with the
+system interpreter first on PATH:
+
+    PATH=/usr/bin:/bin namcap packaging/aur/PKGBUILD
+    PATH=/usr/bin:/bin namcap omarchy-sec-1.0.1-1-any.pkg.tar.zst
+
 ## Layout
 
 | File | Purpose |

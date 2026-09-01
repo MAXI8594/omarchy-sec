@@ -1,0 +1,13 @@
+**📄 Full RFC** — each proposal has its own anchor so you can argue one without the others:
+https://github.com/MAXI8594/omarchy-sec/blob/main/docs/PROPOSAL.md
+
+**🧩 Bar widget** (separate repo, marketplace submission pending):
+https://github.com/MAXI8594/omarchy-sec-plugin
+
+**❓ The questions I actually want answered:**
+
+1. Is A worth a CLI at all, or is `ufw` already the answer?
+2. If B ships, does it belong on by default or behind `omarchy setup security sshd`?
+3. Should any of this be Omarchy's problem, or does it belong entirely out-of-tree?
+
+I would rather kill a proposal here than land a PR nobody wanted. 🙏

@@ -1,0 +1,29 @@
+**⚙️ How the out-of-tree piece actually works**
+
+Nothing below is proposed for core Omarchy. It is what I built to test whether the hooks are worth having.
+
+```
+   sensors on the box            you                 optional
+  +------------------+     +---------------+   +----------------+
+  | Wazuh   Falcon   |     |    the bar    |   | corporate      |
+  | Cortex  S1       |--+->| [#] protected |   | SOC / MDR      |
+  | Defender  Falco  |  |  +---------------+   +----------------+
+  | auditd           |  |                              ^
+  +------------------+  |                              |
+           |            |                     outbound TLS only
+           v            |                              |
+  +------------------+  |                              |
+  |   omarchy-sec    |  +------------------------------+
+  |     -detect      |     (vendor agent's own channel)
+  +------------------+
+           |
+           |  rule level >= 10
+           v
+  +------------------+
+  |  omarchy-agent   |   triage, in your terminal
+  +------------------+
+
+  every port of the self-hosted stack binds 127.0.0.1 - nothing on the LAN
+```
+
+Three states, and the third one matters: 🟢 protected · 🔴 no sensor running · ⚪ **unknown**. A security indicator that says "unprotected" when it simply could not look is a false alarm, so it says it does not know instead.

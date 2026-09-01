@@ -1,0 +1,17 @@
+**🔥 A — `omarchy firewall` CLI group**
+
+A thin wrapper over ufw: `status` / `allow <port>` / `deny <port>` / `reset`, with rules commented so you can tell later why port 3000 is open.
+
+*Honest counter-argument:* `ufw allow 3000` already works and is one word shorter. This may not earn its CLI surface. I would rather hear that now than after a PR.
+
+**🔐 B — sshd hardening drop-in**
+
+`/etc/ssh/sshd_config.d/99-omarchy-hardened.conf` with `PasswordAuthentication no` + `KbdInteractiveAuthentication no`.
+
+This is the only one that changes a default, and it is the one that can lock you out — so it only applies after `sshd -t` passes AND an authorized key is present. `MaxAuthTries` and `X11Forwarding` are separable; argue them individually.
+
+**🤖 C — EDR telemetry hook for `omarchy-agent`**
+
+Omarchy already does great post-mortem (`omarchy agent crash <pid>`). This adds the live counterpart: an opt-in hook so a high-severity event can reach the agent for triage.
+
+Status: A and B are **not implemented**. C exists out-of-tree and needs Docker socket access today, which is root-equivalent — that is a real cost, not a footnote.

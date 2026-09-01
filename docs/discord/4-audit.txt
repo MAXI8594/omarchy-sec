@@ -1,0 +1,15 @@
+**🔍 What I got wrong, before someone finds it**
+
+I audited my own repo before bringing this here. The worst of it first:
+
+**A command injection any local user could reach.** The incident-triage command built its terminal invocation as a double-quoted string and interpolated the assembled prompt into it inside single quotes. That prompt embeds `ps aux` output — the argv of *other users'* processes. A single quote in there closes the literal and the rest runs as shell code. No alert required: an unprivileged user only needs a process running when someone runs the triage command. Fixed, and reproduced both ways to prove it.
+
+And the pipeline I was bragging about was not doing its job:
+
+• The dashboard check printed **PASS in both branches** — an unreachable console reported "ready for deployment". It could not fail.
+• Trivy ran with `--exit-code 0`. A CRITICAL misconfiguration still printed "passed security audit".
+• The header said "Gitleaks & TruffleHog". Only gitleaks was ever invoked.
+• The compose published 6 ports on `0.0.0.0` while my README claimed "zero inbound listening ports". 🤦
+• My own stack does not watch dotfiles. The threat I lead with is dotfile persistence; `$HOME` has to be added to the FIM config by hand. So the integrity gap I describe is one I only partly close.
+
+All fixed, all in the git history rather than quietly rewritten. I am posting it because a security proposal from someone who has not audited their own work is worth nothing.

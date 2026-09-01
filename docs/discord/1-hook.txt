@@ -1,0 +1,11 @@
+🛡️ **RFC: optional security hardening for Omarchy workstations**
+
+Moss suggested I bring this here rather than open PRs cold, so — three small proposals, each one arguable on its own, none of them a package deal.
+
+**The setup.** An Omarchy box runs untrusted code all day. `npm install`, `cargo build`, a `curl | sh` from a README. It also holds the good stuff: SSH keys, cloud tokens, `~/.aws`, session cookies. And `~/.config/hypr/` is a persistence surface — anything writing there runs at your next login.
+
+Omarchy already ships `ufw` with inbound deny. That is the right default. It just does not say anything about egress, or about who rewrote your dotfiles at 3am.
+
+**What I am NOT proposing:** 🚫 no bundled EDR · 🚫 no daemon on by default · 🚫 no telemetry · 🚫 no kernel modules · 🚫 no mandatory anything.
+
+Three proposals, in the next message 👇

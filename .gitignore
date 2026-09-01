@@ -12,3 +12,6 @@ docker/single-node/wazuh-certs-tool.sh
 
 # User-specific cache
 .cache/
+
+# Generated secrets (random passwords, first run of setup.sh) — never commit
+docker/single-node/.env

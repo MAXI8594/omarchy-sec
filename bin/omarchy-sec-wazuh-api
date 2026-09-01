@@ -6,11 +6,33 @@
 
 set -euo pipefail
 
+# Las credenciales las genera setup.sh al azar; no hay default que valga.
+# Orden: variables de entorno > archivo de config del usuario.
+CONFIG_FILE="${OMARCHY_SEC_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/omarchy-sec/env}"
+if [ -r "$CONFIG_FILE" ]; then
+  # shellcheck source=/dev/null
+  . "$CONFIG_FILE"
+fi
+
 API_URL="${WAZUH_API_URL:-https://localhost:55000}"
 API_USER="${WAZUH_API_USER:-wazuh-wui}"
-API_PASS="${WAZUH_API_PASS:-MyS3cr37P450r.*-}"
-CONTAINER_NAME="single-node-wazuh.manager-1"
-TOKEN_CACHE="/tmp/.wazuh_api_token"
+API_PASS="${WAZUH_API_PASS:-}"
+CONTAINER_NAME="${WAZUH_CONTAINER_NAME:-single-node-wazuh.manager-1}"
+
+if [ -z "$API_PASS" ]; then
+  echo "omarchy-sec: falta la password de la API de Wazuh." >&2
+  echo "  Corré ./setup.sh (la genera y la guarda en $CONFIG_FILE)," >&2
+  echo "  o exportá WAZUH_API_PASS antes de invocar este comando." >&2
+  exit 78  # EX_CONFIG
+fi
+
+# El token de sesión NO va a /tmp: es un directorio compartido y la ruta era
+# predecible, así que cualquier usuario local podía plantar el archivo antes y
+# hacer que lo usáramos como token, o leer el nuestro. XDG_RUNTIME_DIR es
+# privado del usuario (0700) y se limpia al cerrar sesión.
+RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/omarchy-sec"
+mkdir -p "$RUNTIME_DIR" && chmod 700 "$RUNTIME_DIR"
+TOKEN_CACHE="$RUNTIME_DIR/wazuh_api_token"
 
 get_token() {
   if [ -f "$TOKEN_CACHE" ]; then
@@ -30,7 +52,7 @@ get_token() {
   token=$(echo "$auth_response" | jq -r '.data.token // empty' 2>/dev/null || true)
   
   if [ -n "$token" ]; then
-    echo "$token" > "$TOKEN_CACHE"
+    (umask 077; printf "%s\n" "$token" > "$TOKEN_CACHE")
     chmod 600 "$TOKEN_CACHE"
     echo "$token"
   else

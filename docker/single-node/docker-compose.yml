@@ -11,21 +11,31 @@ services:
       nofile:
         soft: 655360
         hard: 655360
+    # Agent enrollment (1515), event/log forwarding (1514, 514/udp) and the REST
+    # API (55000) are bound to loopback only. The declared use case for this
+    # single-node stack is a single Omarchy workstation enrolling itself
+    # (setup.sh runs `agent-auth -m 127.0.0.1`), not a multi-host fleet manager
+    # — see docs/ZERO_TRUST_MICROSEGMENTATION.md.
+    #
+    # To enroll OTHER hosts (a small fleet), replace "127.0.0.1:" with the
+    # LAN/VPN interface IP you want to expose on the four lines below (or
+    # "0.0.0.0:" for all interfaces), and make sure your firewall restricts
+    # the source IPs allowed to reach them.
     ports:
-      - "1514:1514"
-      - "1515:1515"
-      - "514:514/udp"
-      - "55000:55000"
+      - "127.0.0.1:1514:1514"
+      - "127.0.0.1:1515:1515"
+      - "127.0.0.1:514:514/udp"
+      - "127.0.0.1:55000:55000"
     environment:
       - INDEXER_URL="https://wazuh.indexer:9200"
       - INDEXER_USERNAME=admin
-      - INDEXER_PASSWORD=SecretPassword
+      - INDEXER_PASSWORD=${INDEXER_PASSWORD:?Falta INDEXER_PASSWORD. Corré ./setup.sh o creá docker/single-node/.env (ver .env.example)}
       - FILEBEAT_SSL_VERIFICATION_MODE=full
       - SSL_CERTIFICATE_AUTHORITIES=/etc/ssl/root-ca.pem
       - SSL_CERTIFICATE=/etc/ssl/filebeat.pem
       - SSL_KEY=/etc/ssl/filebeat.key
       - API_USERNAME=wazuh-wui
-      - API_PASSWORD=MyS3cr37P450r.*-
+      - API_PASSWORD=${API_PASSWORD:?Falta API_PASSWORD. Corré ./setup.sh o creá docker/single-node/.env (ver .env.example)}
     volumes:
       - wazuh_api_configuration:/var/ossec/api/configuration
       - wazuh_etc:/var/ossec/etc
@@ -47,8 +57,10 @@ services:
     image: wazuh/wazuh-indexer:4.14.7
     hostname: wazuh.indexer
     restart: always
+    # Consumed only by the manager/dashboard containers and local tooling
+    # (bin/omarchy-sec-*) on this same host — loopback-only, no fleet use case.
     ports:
-      - "9200:9200"
+      - "127.0.0.1:9200:9200"
     environment:
       - "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
     ulimits:
@@ -72,16 +84,18 @@ services:
     image: wazuh/wazuh-dashboard:4.14.7
     hostname: wazuh.dashboard
     restart: always
+    # SOC console, opened locally by `omarchy-sec dashboard` — loopback-only,
+    # no fleet use case (see note on wazuh.manager ports above).
     ports:
-      - 9001:5601
+      - "127.0.0.1:9001:5601"
     environment:
       - INDEXER_USERNAME=admin
-      - INDEXER_PASSWORD=SecretPassword
+      - INDEXER_PASSWORD=${INDEXER_PASSWORD:?Falta INDEXER_PASSWORD. Corré ./setup.sh o creá docker/single-node/.env (ver .env.example)}
       - WAZUH_API_URL=https://wazuh.manager
       - DASHBOARD_USERNAME=kibanaserver
-      - DASHBOARD_PASSWORD=kibanaserver
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:?Falta DASHBOARD_PASSWORD. Corré ./setup.sh o creá docker/single-node/.env (ver .env.example)}
       - API_USERNAME=wazuh-wui
-      - API_PASSWORD=MyS3cr37P450r.*-
+      - API_PASSWORD=${API_PASSWORD:?Falta API_PASSWORD. Corré ./setup.sh o creá docker/single-node/.env (ver .env.example)}
     volumes:
       - ./config/wazuh_indexer_ssl_certs/wazuh.dashboard.pem:/usr/share/wazuh-dashboard/certs/wazuh-dashboard.pem
       - ./config/wazuh_indexer_ssl_certs/wazuh.dashboard-key.pem:/usr/share/wazuh-dashboard/certs/wazuh-dashboard-key.pem

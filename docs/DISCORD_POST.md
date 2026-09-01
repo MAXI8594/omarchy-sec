@@ -1,11 +1,29 @@
 # Discord post — `#omarchy-security`
 
-Ready-to-paste messages for the RFC discussion. **Post them in order, one message each.**
+Five messages, posted in order, one Discord message each.
 
-Why it is split: Discord caps a message at **2000 characters**, does **not** render Markdown
-tables, and renders `#`/`##`/`###` headings, `**bold**`, lists and fenced code blocks. Every
-block below is under the cap and uses only what Discord actually draws. The GitHub links
-auto-embed, so the last message carries the link that matters.
+## ⚠️ How to copy these
+
+Each message below sits inside a grey code box. **Copy only what is INSIDE the
+box — never the ``` fence lines themselves.** On GitHub, use the copy button in
+the top-right corner of each box; it takes the contents and leaves the fence
+behind. Pasting the fence is what puts stray ``` at the top and bottom of your
+Discord message.
+
+Message 3 is the exception and has its own instructions: it is one Discord
+message assembled from three pieces, because the diagram needs to sit in a
+Discord code block while the text around it must not.
+
+## Why it is split this way
+
+Discord caps a message at **2000 characters**, renders no Markdown tables, and
+does render `#`/`##`/`###` headings, `**bold**`, `*italics*`, lists, inline
+`code` and fenced code blocks. Every block below is under the cap and uses only
+what Discord actually draws. The GitHub links auto-embed, so the last message
+carries the link that matters.
+
+**Emoji never go inside a code block.** They are not monospaced, so a single one
+shifts every line after it — that is what broke the diagram the first time.
 
 ---
 
@@ -53,43 +71,47 @@ Status: A and B are **not implemented**. C exists out-of-tree and needs Docker s
 
 ## 3️⃣ Message 3 — the flow
 
-> ⚠️ **Paste this one exactly, backticks included.** The diagram only lines up
-> inside a fenced code block; without the ``` markers Discord collapses the
-> spacing and it turns to mush. The outer fence below is four backticks so the
-> inner three show up literally — copy everything *between* the four-backtick
-> lines.
+This one is **one Discord message built from two pieces**. Do not paste them as a
+single blob — the diagram has to sit inside a Discord code block or the columns
+collapse. The diagram deliberately contains **no emoji**: emoji are not
+monospaced, and one inside a code block shifts every line after it.
 
-````
-**⚙️ How the out-of-tree piece actually works**
+**Piece 1 — type this as normal text:**
 
-Nothing below is proposed for core Omarchy. It is what I built to test whether the hooks are worth having.
+> **⚙️ How the out-of-tree piece actually works**
+>
+> Nothing below is proposed for core Omarchy. It is what I built to test whether the hooks are worth having.
+
+**Piece 2 — in the same message, type three backticks, press Shift+Enter, paste
+the block below, press Shift+Enter, type three backticks again:**
 
 ```
-   sensors on the box              you                 optional
-  ┌──────────────────┐        ┌───────────┐        ┌──────────────┐
-  │ Wazuh · Falcon   │        │  the bar  │        │ corporate    │
-  │ Cortex · S1      │──┐  ┌─▶│  🛡️ green │        │ SOC / MDR    │
-  │ Defender · Falco │  │  │  └───────────┘        └──────▲───────┘
-  │ auditd           │  │  │                              │
-  └──────────────────┘  │  │                       outbound TLS only
-                        ▼  │                              │
-                  ┌───────────────┐                       │
-                  │ omarchy-sec   │───────────────────────┘
-                  │   -detect     │  (vendor agent's own channel)
-                  └───────┬───────┘
-                          │  rule level >= 10
-                          ▼
-                  ┌───────────────┐
-                  │ omarchy-agent │  triage, in your terminal
-                  └───────────────┘
+   sensors on the box            you                 optional
+  +------------------+     +---------------+   +----------------+
+  | Wazuh   Falcon   |     |    the bar    |   | corporate      |
+  | Cortex  S1       |--+->| [#] protected |   | SOC / MDR      |
+  | Defender  Falco  |  |  +---------------+   +----------------+
+  | auditd           |  |                              ^
+  +------------------+  |                              |
+           |            |                     outbound TLS only
+           v            |                              |
+  +------------------+  |                              |
+  |   omarchy-sec    |  +------------------------------+
+  |     -detect      |     (vendor agent's own channel)
+  +------------------+
+           |
+           |  rule level >= 10
+           v
+  +------------------+
+  |  omarchy-agent   |   triage, in your terminal
+  +------------------+
 
-  every port of the self-hosted stack binds 127.0.0.1 — nothing on the LAN
+  every port of the self-hosted stack binds 127.0.0.1 - nothing on the LAN
 ```
 
-Three states, and the third one matters: 🟢 protected · 🔴 no sensor running · ⚪ **unknown**. A security indicator that says "unprotected" when it simply could not look is a false alarm, so it says it does not know instead.
-````
+**Piece 3 — back to normal text, after the closing backticks:**
 
----
+> Three states, and the third one matters: 🟢 protected · 🔴 no sensor running · ⚪ **unknown**. A security indicator that says "unprotected" when it simply could not look is a false alarm, so it says it does not know instead.
 
 ## 4️⃣ Message 4 — the part nobody posts
 

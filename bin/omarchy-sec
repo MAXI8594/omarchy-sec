@@ -6,21 +6,27 @@
 
 set -euo pipefail
 
+# Los subcomandos delegan en binarios hermanos. El paquete los instala planos en
+# /usr/bin y en un checkout conviven en bin/: resolverlos por ruta hace que
+# ambos casos funcionen. Antes se invocaban a secas y desde el checkout fallaban
+# con "command not found" salvo que /usr/bin ya tuviera el paquete instalado.
+SELF_DIR="$(dirname "$(readlink -f "$0")")"
+
 cmd="${1:-status}"
 shift || true
 
 case "$cmd" in
 status)
-  omarchy-sec-detect
+  "$SELF_DIR/omarchy-sec-detect"
   ;;
 agent|"call-agent"|incident)
-  omarchy-sec-agent "$@"
+  "$SELF_DIR/omarchy-sec-agent" "$@"
   ;;
 onboard|enroll)
-  omarchy-sec-onboard "$@"
+  "$SELF_DIR/omarchy-sec-onboard" "$@"
   ;;
 api)
-  omarchy-sec-wazuh-api "$@"
+  "$SELF_DIR/omarchy-sec-wazuh-api" "$@"
   ;;
 dashboard|soc)
   xdg-open "https://localhost:9001" 2>/dev/null || echo "Abre https://localhost:9001 en tu navegador."

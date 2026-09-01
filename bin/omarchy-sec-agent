@@ -9,7 +9,9 @@
 
 set -euo pipefail
 
-BASE_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+# El paquete instala todos los binarios planos en /usr/bin; en un checkout
+# conviven en bin/. En ambos casos son hermanos de este script.
+SELF_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 TIMESTAMP=$(date -Iseconds)
 
 # Parámetros opcionales si viene disparado por una alerta específica
@@ -22,9 +24,11 @@ FILE_PATH="${5:-}"
 # 1. Recopilar telemetría en vivo desde la API de Wazuh y el sistema
 echo -e "\e[1;33m[*] Conectando con la API de Wazuh y recolectando telemetría del sistema...\e[0m"
 
-wazuh_summary=$("$BASE_DIR/bin/omarchy-sec-wazuh-api" summary 2>/dev/null || echo "{}")
-recent_alerts=$("$BASE_DIR/bin/omarchy-sec-wazuh-api" alerts 8 0 2>/dev/null || echo "[]")
-sensors_detect=$("$BASE_DIR/bin/omarchy-sec-detect" 2>/dev/null || echo "{}")
+# Sin 2>/dev/null: un fallo de credenciales o de la API tiene que verse. Es una
+# herramienta de seguridad, un error tragado es telemetria que falta en silencio.
+wazuh_summary=$("$SELF_DIR/omarchy-sec-wazuh-api" summary || echo "{}")
+recent_alerts=$("$SELF_DIR/omarchy-sec-wazuh-api" alerts 8 0 || echo "[]")
+sensors_detect=$("$SELF_DIR/omarchy-sec-detect" || echo "{}")
 open_ports=$(ss -tuln 2>/dev/null | head -n 12 || echo "N/A")
 top_processes=$(ps aux --sort=-%cpu 2>/dev/null | head -n 8 || echo "N/A")
 
@@ -92,22 +96,42 @@ PROMPT_EOF
 )
 
 # 4. Lanzar la sesión interactiva del agente
-exec omarchy-launch-terminal -e bash -c "
-echo -e '\e[1;36m======================================================================\e[0m'
-echo -e '\e[1;36m 🛡️  OMARCHY SEC: AGENTE DE SEGURIDAD Y RESPUESTA A INCIDENTES       \e[0m'
-echo -e '\e[1;36m======================================================================\e[0m'
-echo -e 'Conectado a la API de Wazuh (:55000) y recolectando telemetría en vivo...\n'
+# El prompt lleva datos que NO controlamos: descripción de la regla, ruta de
+# FIM e IP de la alerta (las escribe quien genera el evento) y la salida de
+# `ps aux`, que expone el argv de procesos de otros usuarios. Interpolarlo
+# dentro del script de `bash -c` era ejecución de comandos: alcanzaba una
+# comilla simple en cualquiera de esos campos para salir del literal. Ahora
+# viaja por el entorno y el script interno va citado en simples, así el shell
+# externo no expande nada del contenido.
+export OMARCHY_SEC_PROMPT="$PROMPT"
 
-if ! omarchy-agent --prompt '$PROMPT'; then
-  echo ''
-  echo -e '\e[1;33m[!] El agente por defecto no pudo completar la sesión (límite de cuota).\e[0m'
-  echo -e 'Puedes ejecutar manualmente tu agente alternativo:'
-  echo -e '  \e[1;32magy --prompt \"...\"\e[0m o \e[1;32mgemini --yolo\e[0m'
+# Sin terminal no hay sesión posible. Si el watcher nos disparó en background
+# esto moría sin dejar rastro, justo en una alerta de nivel >= 10.
+if ! command -v omarchy-launch-terminal >/dev/null 2>&1; then
+  echo "omarchy-sec: falta 'omarchy-launch-terminal'; no se puede abrir la sesión del agente." >&2
+  command -v notify-send >/dev/null 2>&1 && notify-send -u critical -a "Omarchy Sec" \
+    "Omarchy Sec: no se pudo abrir el agente" \
+    "Falta omarchy-launch-terminal. Ejecutá 'omarchy-sec agent' manualmente."
+  exit 127
 fi
 
-echo ''
-echo -e '\e[1;34m======================================================================\e[0m'
-echo -e '\e[1;34m Sesión de seguridad finalizada.                                      \e[0m'
-echo -e '\e[1;34m======================================================================\e[0m'
-read -p 'Presiona ENTER para cerrar esta ventana...'
-"
+# shellcheck disable=SC2016  # a proposito: el prompt entra por entorno, no expandido
+exec omarchy-launch-terminal -e bash -c '
+echo -e "\e[1;36m======================================================================\e[0m"
+echo -e "\e[1;36m 🛡️  OMARCHY SEC: AGENTE DE SEGURIDAD Y RESPUESTA A INCIDENTES       \e[0m"
+echo -e "\e[1;36m======================================================================\e[0m"
+echo -e "Conectado a la API de Wazuh (:55000) y recolectando telemetría en vivo...\n"
+
+if ! omarchy-agent --prompt "$OMARCHY_SEC_PROMPT"; then
+  echo ""
+  echo -e "\e[1;33m[!] El agente por defecto no pudo completar la sesión (límite de cuota).\e[0m"
+  echo -e "Puedes ejecutar manualmente tu agente alternativo:"
+  echo -e "  \e[1;32magy --prompt \"...\"\e[0m o \e[1;32mgemini --yolo\e[0m"
+fi
+
+echo ""
+echo -e "\e[1;34m======================================================================\e[0m"
+echo -e "\e[1;34m Sesión de seguridad finalizada.                                      \e[0m"
+echo -e "\e[1;34m======================================================================\e[0m"
+read -r -p "Presiona ENTER para cerrar esta ventana..."
+'

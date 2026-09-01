@@ -6,7 +6,7 @@
 
 MIN_NOTIFY_LEVEL="${MIN_NOTIFY_LEVEL:-7}"    # Level >= 7 (Medium) -> Desktop Notification
 MIN_AGENT_LEVEL="${MIN_AGENT_LEVEL:-10}"     # Level >= 10 (High/Critical) -> AI Agent Trigger
-CONTAINER_NAME="single-node-wazuh.manager-1"
+CONTAINER_NAME="${WAZUH_CONTAINER_NAME:-single-node-wazuh.manager-1}"
 
 echo "=========================================================="
 echo " Starting Omarchy Wazuh Security Alert Watcher Daemon"
@@ -14,8 +14,16 @@ echo " Min Notify Level: $MIN_NOTIFY_LEVEL | Min Agent Level: $MIN_AGENT_LEVEL"
 echo "=========================================================="
 
 while true; do
-  # Verificar si el contenedor manager de Docker esta corriendo
-  if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+  # Sin 2>/dev/null: si falta permiso sobre el socket de Docker o el daemon
+  # esta caido, el mensaje generico mandaba a buscar un contenedor que si
+  # existia. Ahora el error de docker se ve y el diagnostico es el correcto.
+  if ! running=$(docker ps --format '{{.Names}}'); then
+    echo "[!] No se pudo consultar Docker (daemon caido o sin permiso sobre el socket). Reintentando en 10s..." >&2
+    sleep 10
+    continue
+  fi
+
+  if ! grep -qxF "$CONTAINER_NAME" <<<"$running"; then
     echo "[!] Contenedor $CONTAINER_NAME no detectado. Reintentando en 10s..."
     sleep 10
     continue
@@ -24,11 +32,15 @@ while true; do
   echo "[*] Conectado a $CONTAINER_NAME. Escuchando stream de alertas..."
 
   # Escuchar el stream de alertas en tiempo real
-  docker exec -i "$CONTAINER_NAME" tail -F -n 0 /var/ossec/logs/alerts/alerts.json 2>/dev/null | while IFS= read -r line; do
+  docker exec -i "$CONTAINER_NAME" tail -F -n 0 /var/ossec/logs/alerts/alerts.json | while IFS= read -r line; do
     [ -z "$line" ] && continue
     
     level=$(echo "$line" | jq -r '.rule.level // 0' 2>/dev/null || echo 0)
-    
+
+    # jq puede devolver algo no numerico (linea truncada, .rule.level string):
+    # sin este guard cada linea rara rompia la comparacion de abajo.
+    case "$level" in ''|*[!0-9]*) continue ;; esac
+
     if [ "$level" -ge "$MIN_NOTIFY_LEVEL" ]; then
       rule_id=$(echo "$line" | jq -r '.rule.id // "N/A"' 2>/dev/null)
       desc=$(echo "$line" | jq -r '.rule.description // "Evento de seguridad detectado"' 2>/dev/null)
@@ -39,9 +51,12 @@ while true; do
       
       # Notificacion de escritorio en Omarchy
       notify-send -u "$urgency" \
-        -a "Wazuh EDR" -i security-high \
+        -a "Wazuh EDR" -i security-high -- \
         "🚨 Alerta de Seguridad (Nivel $level)" \
-        "$desc\nRegla: $rule_id | IP: $src_ip" 2>/dev/null || true
+        "$desc\nRegla: $rule_id | IP: $src_ip" ||
+        # Que la notificacion no llegue es una alerta perdida: se registra en el
+        # journal del servicio en vez de tragarse el error con `2>/dev/null`.
+        echo "[!] notify-send fallo: la alerta nivel $level (regla $rule_id) no llego al escritorio." >&2
         
       # Si la severidad es Alta o Critica (>= 10), disparar diagnostico automatico con IA
       if [ "$level" -ge "$MIN_AGENT_LEVEL" ]; then

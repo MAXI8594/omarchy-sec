@@ -31,45 +31,123 @@ fi
 # hacer que lo usáramos como token, o leer el nuestro. XDG_RUNTIME_DIR es
 # privado del usuario (0700) y se limpia al cerrar sesión.
 RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/omarchy-sec"
-mkdir -p "$RUNTIME_DIR" && chmod 700 "$RUNTIME_DIR"
+if ! mkdir -p "$RUNTIME_DIR"; then
+  # Con `mkdir ... && chmod ...` un fallo aca no cortaba (bash exime las listas
+  # AND-OR de errexit) y se seguia con un directorio inexistente.
+  echo "omarchy-sec: no se pudo crear $RUNTIME_DIR para el cache del token." >&2
+  exit 73  # EX_CANTCREAT
+fi
+chmod 700 "$RUNTIME_DIR"
 TOKEN_CACHE="$RUNTIME_DIR/wazuh_api_token"
+
+# Las credenciales y el token NO van en argv: `ps` los muestra a cualquier
+# usuario local mientras dura el request. curl los lee de stdin con --config -.
+cfg_quote() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
 
 get_token() {
   if [ -f "$TOKEN_CACHE" ]; then
     # Check if cached token is less than 10 minutes old
-    local cache_age
+    local cache_age cached
     cache_age=$(($(date +%s) - $(stat -c %Y "$TOKEN_CACHE" 2>/dev/null || echo 0)))
     if [ "$cache_age" -lt 600 ]; then
-      cat "$TOKEN_CACHE"
-      return 0
+      cached=$(cat "$TOKEN_CACHE")
+      # Un cache vacio devolvia un "Bearer " vacio: todos los requests fallaban
+      # con 401 durante 10 minutos y nada lo explicaba. Si esta vacio, reautentica.
+      if [ -n "$cached" ]; then
+        printf '%s\n' "$cached"
+        return 0
+      fi
     fi
   fi
 
-  local auth_response
-  auth_response=$(curl -k -s -u "${API_USER}:${API_PASS}" -X POST "${API_URL}/security/user/authenticate" 2>/dev/null || true)
-  
-  local token
-  token=$(echo "$auth_response" | jq -r '.data.token // empty' 2>/dev/null || true)
-  
-  if [ -n "$token" ]; then
-    (umask 077; printf "%s\n" "$token" > "$TOKEN_CACHE")
-    chmod 600 "$TOKEN_CACHE"
-    echo "$token"
-  else
+  local auth_response rc=0
+  auth_response=$(printf 'user = "%s:%s"\n' "$(cfg_quote "$API_USER")" "$(cfg_quote "$API_PASS")" \
+    | curl -k -s --config - -X POST "${API_URL}/security/user/authenticate") || rc=$?
+
+  if [ "$rc" -ne 0 ]; then
+    echo "omarchy-sec: no hubo respuesta de $API_URL al autenticar (curl salio $rc)." >&2
     return 1
   fi
+
+  local token
+  token=$(printf '%s' "$auth_response" | jq -r '.data.token // empty' 2>/dev/null || true)
+
+  if [ -z "$token" ]; then
+    # El motivo real (credenciales invalidas, usuario bloqueado) viene en el
+    # cuerpo de la respuesta; tragarlo dejaba al usuario sin nada que mirar.
+    echo "omarchy-sec: la API rechazo la autenticacion. Respuesta:" >&2
+    printf '%s\n' "$auth_response" | head -c 500 >&2
+    echo >&2
+    return 1
+  fi
+
+  (umask 077; printf '%s\n' "$token" > "$TOKEN_CACHE")
+  chmod 600 "$TOKEN_CACHE"
+  printf '%s\n' "$token"
+}
+
+# Siempre imprime JSON valido, incluso al fallar: quien consume esta salida
+# (summary, el agente) hacia jq sobre ella y con una respuesta vacia terminaba
+# generando JSON roto.
+api_error() {
+  jq -cn --arg msg "$1" '{error: 1, message: $msg}'
 }
 
 api_req() {
   local endpoint="$1"
-  local token
-  token=$(get_token) || {
-    echo "{\"error\": 1, \"message\": \"No se pudo autenticar con la API de Wazuh en $API_URL\"}"
+  local token res rc=0
+  if ! token=$(get_token); then
+    api_error "No se pudo autenticar con la API de Wazuh en $API_URL"
     return 1
-  }
-  local res
-  res=$(curl -k -s -H "Authorization: Bearer $token" -X GET "${API_URL}${endpoint}" 2>/dev/null || true)
-  echo "$res"
+  fi
+
+  res=$(printf 'header = "Authorization: Bearer %s"\n' "$(cfg_quote "$token")" \
+    | curl -k -s --config - -X GET "${API_URL}${endpoint}") || rc=$?
+
+  # Antes esto era `|| true` + echo: con la API caida devolvia la cadena vacia
+  # y el llamador no tenia forma de distinguirlo de una respuesta legitima.
+  if [ "$rc" -ne 0 ] || [ -z "$res" ]; then
+    api_error "Sin respuesta de la API de Wazuh en ${API_URL}${endpoint} (curl salio $rc)"
+    return 1
+  fi
+
+  printf '%s\n' "$res"
+}
+
+# Imprime la respuesta formateada y propaga el fallo al exit code. Antes cada
+# subcomando hacia `raw=$(api_req ...)`, que bajo `set -e` mataba el script sin
+# imprimir absolutamente nada cuando la API no respondia.
+api_show() {
+  local out rc=0
+  out=$(api_req "$1") || rc=$?
+  printf '%s\n' "$out" | jq .
+  return "$rc"
+}
+
+# Ultimas N alertas del manager. Devolver "[]" cuando Docker no responde era
+# indistinguible de "no hay alertas": la peor mentira posible en un EDR.
+alerts_tail() {
+  local n="$1" running
+  if ! running=$(docker ps --format '{{.Names}}'); then
+    echo "omarchy-sec: no se pudo consultar Docker (daemon caido o sin permiso sobre el socket)." >&2
+    return 1
+  fi
+  if ! grep -qxF "$CONTAINER_NAME" <<<"$running"; then
+    echo "omarchy-sec: el contenedor $CONTAINER_NAME no esta corriendo." >&2
+    return 1
+  fi
+  docker exec -i "$CONTAINER_NAME" tail -n "$n" /var/ossec/logs/alerts/alerts.json
+}
+
+require_uint() {
+  case "$2" in
+    ''|*[!0-9]*)
+      echo "omarchy-sec: '$1' debe ser un entero no negativo (recibido: '$2')." >&2
+      exit 64  # EX_USAGE
+      ;;
+  esac
 }
 
 subcmd="${1:-summary}"
@@ -80,40 +158,40 @@ token)
   get_token
   ;;
 agents)
-  raw_agents=$(api_req "/agents")
-  echo "$raw_agents" | jq .
+  api_show "/agents"
   ;;
 status|manager)
-  raw_status=$(api_req "/manager/status")
-  echo "$raw_status" | jq .
+  api_show "/manager/status"
   ;;
 sca)
   agent_id="${1:-001}"
-  raw_sca=$(api_req "/sca/${agent_id}")
-  echo "$raw_sca" | jq .
+  api_show "/sca/${agent_id}"
   ;;
 syscheck|fim)
   agent_id="${1:-001}"
-  raw_fim=$(api_req "/syscheck/${agent_id}")
-  echo "$raw_fim" | jq .
+  api_show "/syscheck/${agent_id}"
   ;;
 alerts)
   limit="${1:-10}"
   min_level="${2:-0}"
-  if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "$CONTAINER_NAME"; then
-    raw_alerts=$(docker exec -i "$CONTAINER_NAME" tail -n 100 /var/ossec/logs/alerts/alerts.json 2>/dev/null || echo "")
-    echo "$raw_alerts" | jq -s --argjson min "$min_level" --argjson lim "$limit" \
-      'map(select((.rule.level // 0) >= $min)) | reverse | .[:$lim]'
-  else
-    echo "[]"
-  fi
+  # Ambos van directo al parser de jq via --argjson: se validan antes.
+  require_uint "limite" "$limit"
+  require_uint "nivel_min" "$min_level"
+
+  raw_alerts=$(alerts_tail 100) || exit 1
+  printf '%s\n' "$raw_alerts" | jq -s --argjson min "$min_level" --argjson lim "$limit" \
+    'map(select((.rule.level // 0) >= $min)) | reverse | .[:$lim]'
   ;;
 summary)
-  agents_json=$(api_req "/agents" 2>/dev/null || echo "{}")
+  # api_req ya devuelve JSON valido al fallar; antes el `|| echo "{}"` sumaba un
+  # segundo documento a la salida de error y el jq de abajo emitia dos valores,
+  # dejando este bloque con JSON invalido ("agents": []\n[]).
+  agents_json=$(api_req "/agents") || true
+
   recent_alerts="[]"
-  if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "$CONTAINER_NAME"; then
-    raw_tail=$(docker exec -i "$CONTAINER_NAME" tail -n 50 /var/ossec/logs/alerts/alerts.json 2>/dev/null || echo "")
-    recent_alerts=$(echo "$raw_tail" | jq -s 'reverse | .[:5] | map({level: .rule.level, description: .rule.description, id: .rule.id, timestamp: .timestamp, file: .syscheck.path})' 2>/dev/null || echo "[]")
+  if raw_tail=$(alerts_tail 50); then
+    recent_alerts=$(printf '%s\n' "$raw_tail" | jq -s 'reverse | .[:5] | map({level: .rule.level, description: .rule.description, id: .rule.id, timestamp: .timestamp, file: .syscheck.path})' 2>/dev/null || echo "[]")
+    [ -n "$recent_alerts" ] || recent_alerts="[]"
   fi
 
   cat <<JSON_SUM
@@ -127,8 +205,7 @@ JSON_SUM
   ;;
 query)
   endpoint="${1:?Debe especificar el endpoint, ej: /agents}"
-  raw_q=$(api_req "$endpoint")
-  echo "$raw_q" | jq .
+  api_show "$endpoint"
   ;;
 help|--help|-h)
   echo "Uso: omarchy-sec-wazuh-api <comando>"

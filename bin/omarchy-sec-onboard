@@ -39,11 +39,25 @@ onboard_falcon() {
   echo ""
   read -p "Ingresa el Customer ID (CID) provisto por tu empresa (o deja en blanco): " -r cid
   if [ -n "$cid" ]; then
-    sudo /opt/CrowdStrike/falconctl -s -f --cid="$cid" || true
-    sudo /opt/CrowdStrike/falconctl -s --rfm-state=false || true
-    sudo systemctl enable --now falcon-sensor 2>/dev/null || true
+    if [ ! -x /opt/CrowdStrike/falconctl ]; then
+      echo "omarchy-sec: no se encontro /opt/CrowdStrike/falconctl. Instala el sensor antes de enrolar." >&2
+      return 1
+    fi
+    # Nota: falconctl solo acepta el CID por argv, asi que queda visible en `ps`
+    # mientras dura el comando. Es una limitacion del binario de CrowdStrike.
+    if ! sudo /opt/CrowdStrike/falconctl -s -f --cid="$cid"; then
+      # Antes esto era `|| true` y despues se imprimia "✓ configurado" igual:
+      # el usuario se iba creyendo que el endpoint habia quedado enrolado.
+      echo "omarchy-sec: falconctl rechazo el CID. El sensor NO quedo enrolado." >&2
+      return 1
+    fi
+    sudo /opt/CrowdStrike/falconctl -s --rfm-state=false ||
+      echo "omarchy-sec: no se pudo desactivar el modo RFM." >&2
+    sudo systemctl enable --now falcon-sensor ||
+      echo "omarchy-sec: no se pudo iniciar el servicio falcon-sensor." >&2
     echo -e "\n\e[1;32m✓ Falcon Sensor configurado. Verificando estado:\e[0m"
-    sudo /opt/CrowdStrike/falconctl -g --cid --rfm-state --version 2>/dev/null || true
+    sudo /opt/CrowdStrike/falconctl -g --cid --rfm-state --version ||
+      echo "omarchy-sec: no se pudo leer el estado del sensor." >&2
   fi
 }
 
@@ -57,7 +71,7 @@ onboard_defender() {
   echo ""
   if command -v mdatp >/dev/null 2>&1; then
     echo -e "\e[1;32mVerificando estado de Defender en este equipo:\e[0m"
-    mdatp health 2>/dev/null || true
+    mdatp health || echo "omarchy-sec: 'mdatp health' fallo; el endpoint puede no estar enrolado." >&2
   fi
 }
 
@@ -66,12 +80,24 @@ onboard_sentinelone() {
   echo "1. Si tienes el paquete .rpm, extráelo con:"
   echo "   sudo rpmextract.sh SentinelAgent-*.rpm"
   echo ""
-  read -p "Ingresa el Site Token provisto por tu empresa (o deja en blanco): " -r token
+  # -s: el site token es una credencial. Sin esto quedaba impreso en pantalla y
+  # en el scrollback de la terminal.
+  read -rsp "Ingresa el Site Token provisto por tu empresa (o deja en blanco): " token
+  echo ""
   if [ -n "$token" ]; then
-    sudo /opt/sentinelone/bin/sentinelctl control site-token set "$token" || true
-    sudo systemctl enable --now sentinelone 2>/dev/null || true
+    if [ ! -x /opt/sentinelone/bin/sentinelctl ]; then
+      echo "omarchy-sec: no se encontro /opt/sentinelone/bin/sentinelctl. Instala el agente antes de enrolar." >&2
+      return 1
+    fi
+    if ! sudo /opt/sentinelone/bin/sentinelctl control site-token set "$token"; then
+      echo "omarchy-sec: sentinelctl rechazo el site token. El agente NO quedo enrolado." >&2
+      return 1
+    fi
+    sudo systemctl enable --now sentinelone ||
+      echo "omarchy-sec: no se pudo iniciar el servicio sentinelone." >&2
     echo -e "\n\e[1;32m✓ SentinelOne configurado. Verificando estado:\e[0m"
-    sudo /opt/sentinelone/bin/sentinelctl status 2>/dev/null || true
+    sudo /opt/sentinelone/bin/sentinelctl status ||
+      echo "omarchy-sec: no se pudo leer el estado del agente." >&2
   fi
 }
 
@@ -82,22 +108,54 @@ onboard_cortex() {
   echo ""
   if [ -f "/opt/traps/bin/cytool" ]; then
     echo -e "\e[1;32mVerificando estado de Cortex XDR:\e[0m"
-    sudo /opt/traps/bin/cytool check 2>/dev/null || true
+    sudo /opt/traps/bin/cytool check || echo "omarchy-sec: 'cytool check' fallo; revisa el estado de Cortex XDR." >&2
   fi
 }
 
 onboard_wazuh() {
   echo -e "\n\e[1;33m[🐺 Wazuh Agent - Onboarding]\e[0m"
   read -p "Ingresa la IP o FQDN del Wazuh Manager central: " -r manager_ip
-  read -p "Ingresa el Password de registro (o deja en blanco si no tiene): " -r pass
-  
+  # -s: es una credencial de registro; no tiene por que quedar en pantalla ni en
+  # el scrollback de la terminal.
+  read -rsp "Ingresa el Password de registro (o deja en blanco si no tiene): " pass
+  echo ""
+
   if [ -n "$manager_ip" ]; then
-    pass_arg=""
-    [ -n "$pass" ] && pass_arg="-P $pass"
-    # shellcheck disable=SC2086
-    sudo /var/ossec/bin/agent-auth -m "$manager_ip" $pass_arg -A "$(hostname)" || true
-    sudo sed -i "s/<address>.*<\/address>/<address>$manager_ip<\/address>/" /var/ossec/etc/ossec.conf || true
-    sudo systemctl enable --now wazuh-agent 2>/dev/null || true
+    # $manager_ip termina dentro de una expresion de sed que corre como root
+    # sobre ossec.conf. Un valor con "/", "&" o ";" no era solo invalido: podia
+    # corromper el archivo (p.ej. 'x/;s/.*//;' lo dejaba vacio). Se restringe al
+    # charset legal de una IP o un FQDN antes de tocar nada.
+    if ! [[ "$manager_ip" =~ ^[A-Za-z0-9._:-]+$ ]]; then
+      echo "omarchy-sec: '$manager_ip' no parece una IP ni un FQDN valido. Se aborta." >&2
+      return 1
+    fi
+
+    if [ ! -x /var/ossec/bin/agent-auth ]; then
+      echo "omarchy-sec: no se encontro /var/ossec/bin/agent-auth. Instala wazuh-agent antes de enrolar." >&2
+      return 1
+    fi
+
+    # Array en vez de expansion sin comillas: una password con espacios se
+    # partia en varios argumentos y el registro fallaba de forma confusa.
+    # Nota: agent-auth solo acepta la password por argv, asi que queda visible
+    # en `ps` mientras dura el registro. Es una limitacion de Wazuh.
+    auth_args=(-m "$manager_ip" -A "$(hostname)")
+    [ -n "$pass" ] && auth_args+=(-P "$pass")
+
+    if ! sudo /var/ossec/bin/agent-auth "${auth_args[@]}"; then
+      # Antes todo el bloque era `|| true` y siempre se imprimia "✓ registrado y
+      # conectado", aunque el registro hubiera fallado.
+      echo "omarchy-sec: agent-auth fallo. El agente NO quedo registrado." >&2
+      return 1
+    fi
+
+    if ! sudo sed -i "s/<address>.*<\/address>/<address>$manager_ip<\/address>/" /var/ossec/etc/ossec.conf; then
+      echo "omarchy-sec: no se pudo escribir el manager en /var/ossec/etc/ossec.conf." >&2
+      return 1
+    fi
+
+    sudo systemctl enable --now wazuh-agent ||
+      echo "omarchy-sec: no se pudo iniciar el servicio wazuh-agent." >&2
     echo -e "\n\e[1;32m✓ Wazuh Agent registrado y conectado.\e[0m"
   fi
 }

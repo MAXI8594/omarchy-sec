@@ -40,6 +40,8 @@ Explorá las especificaciones técnicas completas, diagramas arquitectónicos y 
 | :--- | :--- | :--- |
 | 🏛️ **Arquitectura y Telemetría** | Especificación técnica completa de sondas eBPF, kernel y streaming al SOC. | [**`docs/ARCHITECTURE.md`**](docs/ARCHITECTURE.md) |
 | 🎯 **Por qué Omarchy Necesita EDR** | Modelo de amenazas del desarrollador moderno (supply chain, dotfile tampering). | [**`docs/WHY_OMARCHY_NEEDS_EDR.es.md`**](docs/WHY_OMARCHY_NEEDS_EDR.es.md) |
+| 📄 **RFC / Propuesta (Markdown)** | La propuesta completa como documento revisable — tres propuestas discutibles por separado más el pipeline DevSecOps real. | [**`docs/PROPOSAL.es.md`**](docs/PROPOSAL.es.md) |
+| 💬 **Post para Discord** | El mismo RFC cortado en mensajes pegables para `#omarchy-security`, cada uno bajo el límite de 2000 caracteres. | [**`docs/DISCORD_POST.md`**](docs/DISCORD_POST.md) |
 | 📬 **Propuestas de PR para Omarchy (DHH)** | 3 propuestas concretas: `omarchy firewall`, SSH hardening y hooks de telemetría. | [**`docs/OMARCHY_UPSTREAM_PR.es.md`**](docs/OMARCHY_UPSTREAM_PR.es.md) |
 | 🏢 **Guías de Despliegue EDR Empresarial** | Playbooks para **CrowdStrike, Microsoft Defender, SentinelOne, Cortex y Wazuh**. | [**`docs/ENTERPRISE_EDR_GUIDE.es.md`**](docs/ENTERPRISE_EDR_GUIDE.es.md) |
 | 🔒 **Microsegmentación Zero Trust** | Endurecimiento de red, telemetría de salida TLS/443 y 0 puertos abiertos. | [**`docs/ZERO_TRUST_MICROSEGMENTATION.es.md`**](docs/ZERO_TRUST_MICROSEGMENTATION.es.md) |

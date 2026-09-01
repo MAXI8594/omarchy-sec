@@ -126,6 +126,7 @@ I audited my own repo before bringing this here, and the pipeline I was bragging
 • The compose published 6 ports on `0.0.0.0` — manager and indexer offered to the whole LAN — while my README claimed "zero inbound listening ports". 🤦
 • It shipped the wazuh-docker demo passwords, and `setup.sh` printed one to the terminal on every run.
 • The API client cached its token at `/tmp/.wazuh_api_token`. Shared dir, predictable path.
+• My own stack does not watch dotfiles. The threat I lead with is dotfile persistence; the FIM config covers `/etc` and `/usr/bin` and friends, and `$HOME` has to be added by hand. So the integrity gap I describe is one I only partly close.
 
 All fixed, all in the git history rather than quietly rewritten. I am posting it because a security proposal from someone who has not audited their own work is worth nothing.
 ```

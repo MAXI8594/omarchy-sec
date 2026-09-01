@@ -243,7 +243,7 @@ Para quien quiera mirar código funcionando antes de decidir si los hooks valen 
 | [`omarchy-sec-plugin`](https://github.com/MAXI8594/omarchy-sec-plugin) | Widget de barra Quickshell y panel emergente mostrando el estado de los sensores. Repositorio aparte, se instala con `omarchy plugin add`. |
 | `docker/single-node/` | Manager, indexer y dashboard de Wazuh, todos enlazados a `127.0.0.1`. |
 
-Asperezas conocidas, declaradas acá en vez de que las descubra quien revise: el watcher necesita acceso al socket de Docker, ya mencionado. Nada de lo propuesto upstream depende de eso.
+Asperezas conocidas, declaradas acá en vez de que las descubra quien revise. El watcher necesita acceso al socket de Docker, ya mencionado. Y la más filosa, porque toca el [§2](#2--planteo-del-problema): el stack self-hosted **no** vigila dotfiles de fábrica. Su bloque `syscheck` cubre `/etc`, `/usr/bin`, `/usr/sbin`, `/bin`, `/sbin` y `/boot`; `$HOME` hay que agregarlo a mano en la config del agente. Así que la mitad de integridad del hueco que describo arriba es una que mi propia herramienta hoy cierra sólo en parte. Nada de lo propuesto upstream depende de ninguna de las dos.
 
 ---
 

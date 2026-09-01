@@ -53,11 +53,17 @@ Status: A and B are **not implemented**. C exists out-of-tree and needs Docker s
 
 ## 3️⃣ Message 3 — the flow
 
-```
+> ⚠️ **Paste this one exactly, backticks included.** The diagram only lines up
+> inside a fenced code block; without the ``` markers Discord collapses the
+> spacing and it turns to mush. The outer fence below is four backticks so the
+> inner three show up literally — copy everything *between* the four-backtick
+> lines.
+
+````
 **⚙️ How the out-of-tree piece actually works**
 
 Nothing below is proposed for core Omarchy. It is what I built to test whether the hooks are worth having.
-```
+
 ```
    sensors on the box              you                 optional
   ┌──────────────────┐        ┌───────────┐        ┌──────────────┐
@@ -79,9 +85,9 @@ Nothing below is proposed for core Omarchy. It is what I built to test whether t
 
   every port of the self-hosted stack binds 127.0.0.1 — nothing on the LAN
 ```
-```
+
 Three states, and the third one matters: 🟢 protected · 🔴 no sensor running · ⚪ **unknown**. A security indicator that says "unprotected" when it simply could not look is a false alarm, so it says it does not know instead.
-```
+````
 
 ---
 

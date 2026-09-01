@@ -26,10 +26,26 @@ dashboard|soc)
   xdg-open "https://localhost:9001" 2>/dev/null || echo "Abre https://localhost:9001 en tu navegador."
   ;;
 test)
-  "$(dirname "$(readlink -f "$0")")/../tests/run_tests.sh"
+  repo_tests="$(dirname "$(readlink -f "$0")")/../tests/run_tests.sh"
+  if [ -x "$repo_tests" ]; then
+    "$repo_tests"
+  else
+    echo "omarchy-sec: 'test' solo corre desde un checkout del repositorio." >&2
+    echo "  git clone https://github.com/MAXI8594/omarchy-sec.git && cd omarchy-sec && ./tests/run_tests.sh" >&2
+    exit 78
+  fi
   ;;
 setup)
-  "$(dirname "$(readlink -f "$0")")/../setup.sh"
+  # setup.sh y tests/ viven en el checkout del repo, no en el paquete: instalado
+  # en /usr/bin esto resolvia a /usr/setup.sh. Se busca el checkout o se explica.
+  repo_setup="$(dirname "$(readlink -f "$0")")/../setup.sh"
+  if [ -x "$repo_setup" ]; then
+    "$repo_setup"
+  else
+    echo "omarchy-sec: 'setup' solo corre desde un checkout del repositorio." >&2
+    echo "  git clone https://github.com/MAXI8594/omarchy-sec.git && cd omarchy-sec && ./setup.sh" >&2
+    exit 78
+  fi
   ;;
 help|--help|-h)
   echo "Uso: omarchy-sec <comando>"

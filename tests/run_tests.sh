@@ -31,22 +31,32 @@ fi
 
 # 2. Omarchy Plugin Validator
 echo ""
+# El widget vive en su propio repo (MAXI8594/omarchy-sec-plugin). Se valida el
+# checkout que este al lado o el que este instalado; si no hay ninguno, SKIP —
+# este repo ya no es un plugin y validarlo contra si mismo siempre falla.
 echo "[2/6] SAST: Omarchy Plugin & QML Manifest Validation..."
-if command -v omarchy >/dev/null 2>&1; then
-  if omarchy plugin validate "$BASE_DIR"; then
-    echo "  ✓ PASS: Omarchy Plugin Validator: 0 schema or import errors"
-    PASSED=$((PASSED + 1))
-  else
-    echo "  ✗ FAIL: Omarchy Plugin Validator failed"
-    FAILED=$((FAILED + 1))
-  fi
-else
+PLUGIN_DIR=""
+for candidate in \
+  "$BASE_DIR/../omarchy-sec-plugin" \
+  "$HOME/.config/omarchy/plugins/io.github.maxi8594.omarchy-sec"; do
+  [ -f "$candidate/manifest.json" ] && PLUGIN_DIR="$candidate" && break
+done
+
+if ! command -v omarchy >/dev/null 2>&1; then
   echo "  ⚠ SKIP: omarchy CLI not available in path"
+elif [ -z "$PLUGIN_DIR" ]; then
+  echo "  ⚠ SKIP: no se encontro un checkout del plugin para validar"
+elif omarchy plugin validate "$PLUGIN_DIR"; then
+  echo "  ✓ PASS: Omarchy Plugin Validator: 0 schema or import errors ($PLUGIN_DIR)"
+  PASSED=$((PASSED + 1))
+else
+  echo "  ✗ FAIL: Omarchy Plugin Validator failed ($PLUGIN_DIR)"
+  FAILED=$((FAILED + 1))
 fi
 
 # 3. Secrets Scanning: Gitleaks
 echo ""
-echo "[3/6] Secrets Scanning (Gitleaks & TruffleHog)..."
+echo "[3/6] Secrets Scanning (Gitleaks)..."
 if command -v gitleaks >/dev/null 2>&1; then
   if gitleaks detect --source="$BASE_DIR" --no-git -v >/dev/null 2>&1; then
     echo "  ✓ PASS: Gitleaks: No leaked secrets, credentials, or private keys"
@@ -63,7 +73,7 @@ fi
 echo ""
 echo "[4/6] IaC & Misconfiguration Scanning (Trivy)..."
 if command -v trivy >/dev/null 2>&1; then
-  if trivy config "$BASE_DIR/docker/single-node" --severity HIGH,CRITICAL --exit-code 0 >/dev/null 2>&1; then
+  if trivy config "$BASE_DIR/docker/single-node" --severity HIGH,CRITICAL --exit-code 1 >/dev/null 2>&1; then
     echo "  ✓ PASS: Trivy IaC: Docker compose definitions passed security audit"
     PASSED=$((PASSED + 1))
   else
@@ -79,7 +89,7 @@ echo ""
 echo "[5/6] Functional: Sensor Detection Engine Verification..."
 if "$BASE_DIR/bin/omarchy-sec-detect" >/dev/null 2>&1; then
   DETECT_OUTPUT="$("$BASE_DIR/bin/omarchy-sec-detect")"
-  ENGINE_NAME=$(echo "$DETECT_OUTPUT" | jq -r '.primary_engine // "unknown"')
+  ENGINE_NAME=$(echo "$DETECT_OUTPUT" | jq -r '.primary // "unknown"')
   ENGINE_STATUS=$(echo "$DETECT_OUTPUT" | jq -r '.status // "unknown"')
   echo "  ✓ PASS: Detection Engine: Functional ($ENGINE_NAME, Status: $ENGINE_STATUS)"
   PASSED=$((PASSED + 1))
@@ -91,12 +101,18 @@ fi
 # 6. DAST Connectivity Check
 echo ""
 echo "[6/6] DAST: SOC Dashboard Port Connectivity (https://localhost:9001)..."
-if curl -k -s -o /dev/null -w "%{http_code}" https://localhost:9001/ 2>/dev/null | grep -E "(200|302)" >/dev/null 2>&1; then
-  echo "  ✓ PASS: DAST Health Check: Port 9001 responsive (HTTP 302)"
+# Sonda de alcanzabilidad, no un DAST. Si el stack no esta levantado es un SKIP,
+# no un PASS: antes las dos ramas sumaban PASSED, asi que este check no podia
+# fallar ni cuando el dashboard estaba caido.
+DASH_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" --max-time 5 https://localhost:9001/ 2>/dev/null || echo "000")
+if [ "$DASH_CODE" = "000" ]; then
+  echo "  ⚠ SKIP: SOC dashboard no responde en :9001 (stack apagado)"
+elif echo "$DASH_CODE" | grep -qE "^(200|302)$"; then
+  echo "  ✓ PASS: SOC dashboard responde (HTTP $DASH_CODE)"
   PASSED=$((PASSED + 1))
 else
-  echo "  ✓ PASS: DAST Health Check (Port 9001 ready for deployment)"
-  PASSED=$((PASSED + 1))
+  echo "  ✗ FAIL: SOC dashboard respondio HTTP $DASH_CODE"
+  FAILED=$((FAILED + 1))
 fi
 
 echo ""

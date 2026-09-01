@@ -18,6 +18,47 @@ installed with `makepkg -si` (root), satisfies the widget's trust check.
 predates a command-injection fix (`be1660f`) that shipped in `1.0.1`
 (`3b953a7`). `1.0.0` is superseded, not an alternative version.
 
+## Status: blocked upstream, not on us
+
+As of 2026-09-01 the AUR has **paused new account registration** while it deals
+with a wave of automated account creation (HTTP 503 on the register page). The
+package cannot be published until that reopens and an account exists.
+
+The notice asks explicitly not to script retries against that page. Do not add a
+polling job for it. Announcements go to
+[aur-general](https://lists.archlinux.org/mailman3/lists/aur-general.lists.archlinux.org/)
+and the [Arch news feed](https://archlinux.org/news/); watch those instead.
+
+Nothing here is waiting on work. `PKGBUILD` and `.SRCINFO` are final for 1.0.1,
+verified in sync, and the package has been built and installed on a real machine
+end to end.
+
+### When registration reopens
+
+1. Register at <https://aur.archlinux.org/register>, then paste the SSH public
+   key into **My Account → SSH Public Key**. The key must match the fingerprint
+   you registered; a comment change does not alter it.
+2. Confirm the AUR recognises you before touching git:
+
+       ssh aur@aur.archlinux.org help
+
+   `Permission denied (publickey)` means the key is not registered yet.
+3. Publish. The AUR uses `master`, not `main`, and rejects a push whose
+   `.SRCINFO` disagrees with the `PKGBUILD`:
+
+       git clone ssh://aur@aur.archlinux.org/omarchy-sec.git /tmp/aur-omarchy-sec
+       cp PKGBUILD .SRCINFO omarchy-sec.install /tmp/aur-omarchy-sec/
+       cd /tmp/aur-omarchy-sec
+       makepkg --printsrcinfo > .SRCINFO      # regenerate rather than trust the copy
+       git add PKGBUILD .SRCINFO omarchy-sec.install
+       git commit -m "Initial import: omarchy-sec 1.0.1"
+       git push -u origin master
+
+The name `omarchy-sec` was unclaimed when this was written
+(`https://aur.archlinux.org/rpc/v5/info?arg[]=omarchy-sec` returned zero
+results). Check again before importing.
+
+
 ## Layout
 
 | File | Purpose |

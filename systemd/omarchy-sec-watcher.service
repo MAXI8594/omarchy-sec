@@ -1,10 +1,11 @@
 [Unit]
 Description=Omarchy Sec - Security Alert & AI Incident Bridge
-After=docker.service graphical-session.target
+Documentation=https://github.com/MAXI8594/omarchy-sec
+After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=%h/.local/bin/omarchy-sec-watcher
+ExecStart=/usr/bin/omarchy-sec-watcher
 Restart=always
 RestartSec=5
 

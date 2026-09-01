@@ -1,0 +1,26 @@
+post_install() {
+  cat <<'MSG'
+
+  omarchy-sec installed.
+
+  The alert watcher is a *user* service. Enable it for your session with:
+
+      systemctl --user daemon-reload
+      systemctl --user enable --now omarchy-sec-watcher.service
+
+  It needs the Wazuh manager container (single-node-wazuh.manager-1) running
+  and your user in the "docker" group. Tune thresholds via the environment:
+
+      systemctl --user edit omarchy-sec-watcher.service
+      # [Service]
+      # Environment=MIN_NOTIFY_LEVEL=7
+      # Environment=MIN_AGENT_LEVEL=10
+
+  Wazuh API credentials come from WAZUH_API_URL / WAZUH_API_USER / WAZUH_API_PASS.
+
+MSG
+}
+
+post_upgrade() {
+  echo "  Run: systemctl --user daemon-reload && systemctl --user try-restart omarchy-sec-watcher.service"
+}

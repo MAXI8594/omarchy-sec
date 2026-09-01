@@ -1,0 +1,29 @@
+# Maintainer: Maximiliano Olivera <maxioliverait@gmail.com>
+
+pkgname=omarchy-sec
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Agnostic EDR/XDR bridge for Omarchy: sensor detection, Wazuh API client and AI incident-response watcher"
+arch=('any')
+url="https://github.com/MAXI8594/omarchy-sec"
+license=('MIT')
+depends=('bash' 'curl' 'inetutils' 'jq' 'libnotify')
+optdepends=(
+  'docker: self-hosted Wazuh stack — manager detection, alert tailing and the incident watcher'
+  'omarchy: interactive AI incident-response session (omarchy-agent, omarchy-launch-terminal)'
+  'sudo: enterprise EDR onboarding wizard (omarchy-sec onboard)'
+  'xdg-utils: open the Wazuh dashboard from "omarchy-sec dashboard"'
+)
+makedepends=('git')
+install="$pkgname.install"
+source=("git+$url.git#tag=v$pkgver")
+sha256sums=('SKIP')
+
+package() {
+  cd "$pkgname"
+
+  install -Dm755 -t "$pkgdir/usr/bin/" bin/omarchy-sec bin/omarchy-sec-*
+  install -Dm644 systemd/omarchy-sec-watcher.service \
+    "$pkgdir/usr/lib/systemd/user/omarchy-sec-watcher.service"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

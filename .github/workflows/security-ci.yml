@@ -5,10 +5,17 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  schedule:
+    # Container image scan is slow (3 third-party ~1GB+ Wazuh images) and its
+    # findings are advisory only (see job below), so it runs weekly instead of
+    # on every push/PR.
+    - cron: '17 3 * * 1'
+  workflow_dispatch: {}
 
 jobs:
   security-audit:
-    name: DevSecOps Quality Gate
+    name: DevSecOps Quality Gate (blocking)
+    if: github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source Code
@@ -16,17 +23,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run ShellCheck (SAST)
-        uses: ludeeus/action-shellcheck@master
+      # Escanea bin/ y scripts/, igual que tests/run_tests.sh. Antes el CI solo
+      # miraba bin/, asi que un problema en scripts/ lo detectaba el pipeline
+      # local y el CI lo dejaba pasar.
+      - name: Run ShellCheck (SAST, blocking)
+        uses: ludeeus/action-shellcheck@2.0.0
         with:
-          scandir: './bin'
+          scandir: '.'
+          ignore_paths: 'docker'
 
-      - name: Run Gitleaks (Secrets Scanning)
+      - name: Run Gitleaks (Secrets Scanning, blocking)
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run Semgrep SAST
+      - name: Run Semgrep SAST (blocking)
         uses: returntocorp/semgrep-action@v1
         with:
           config: >-
@@ -34,11 +45,52 @@ jobs:
             p/secrets
             p/bash
 
-      - name: Run Trivy IaC Scanner
-        uses: aquasecurity/trivy-action@master
+      - name: Run Trivy IaC Scanner (blocking)
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: 'config'
           hide-progress: true
           format: 'table'
           severity: 'HIGH,CRITICAL'
           scan-ref: 'docker/single-node'
+          exit-code: '1'
+
+  container-image-scan:
+    name: SCA - Wazuh Container Image Scan (advisory, non-blocking)
+    # Third-party images (wazuh/*) we don't control and can't patch upstream
+    # CVEs for. Blocking here would turn CI permanently red for issues that
+    # aren't actionable in this repo, so exit-code stays 0: report, don't gate.
+    # Runs on the weekly schedule (see cron above) or on-demand, not on every push.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image:
+          - 'wazuh/wazuh-manager:4.14.7'
+          - 'wazuh/wazuh-indexer:4.14.7'
+          - 'wazuh/wazuh-dashboard:4.14.7'
+      fail-fast: false
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy Image Scanner (${{ matrix.image }})
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: 'image'
+          image-ref: ${{ matrix.image }}
+          hide-progress: true
+          format: 'table'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '0'
+          output: 'trivy-image-report.txt'
+
+      - name: Publish result to job summary
+        if: always()
+        run: |
+          {
+            echo "### Trivy image scan: ${{ matrix.image }}"
+            echo '```'
+            cat trivy-image-report.txt 2>/dev/null || echo "(no report generated)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

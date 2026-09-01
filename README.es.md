@@ -10,9 +10,25 @@
 [![Reporte: PDF](https://img.shields.io/badge/Informe-Descargar%20PDF-red.svg)](docs/OMARCHY_SEC_ENTERPRISE_REPORT.pdf)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[**🇺🇸 Read in English**](README.md) • [**📄 Informe Ejecutivo en PDF**](docs/OMARCHY_SEC_ENTERPRISE_REPORT.pdf) • [**📬 Propuestas de PR para Omarchy**](docs/OMARCHY_UPSTREAM_PR.es.md)
+[**🇺🇸 Read in English**](README.md) • [**🧩 Repo del Widget**](https://github.com/MAXI8594/omarchy-sec-plugin) • [**📄 Informe Ejecutivo en PDF**](docs/OMARCHY_SEC_ENTERPRISE_REPORT.pdf) • [**📬 Propuestas de PR para Omarchy**](docs/OMARCHY_UPSTREAM_PR.es.md)
 
 </div>
+
+---
+
+## 📦 Un Proyecto, Tres Entregables
+
+Siguiendo la división sugerida por el mantenedor de Omarchy, Omarchy Sec se distribuye como tres piezas independientes, cada una por el canal que le corresponde:
+
+| # | Entregable | Vive en | Se distribuye por | Estado |
+| :-- | :--- | :--- | :--- | :--- |
+| 1 | **Widget de barra en Quickshell** — el escudo en la barra y su panel de inspección | [`MAXI8594/omarchy-sec-plugin`](https://github.com/MAXI8594/omarchy-sec-plugin) | [Omarchy Plugin Marketplace](https://plugins.omarchy.org/) → `omarchy plugin add` | Envío pendiente — ver [`docs/PUBLISHING.es.md`](docs/PUBLISHING.es.md) |
+| 2 | **Propuestas de configuración del sistema** — `omarchy firewall`, hardening de SSH, hooks de EDR | [`docs/OMARCHY_UPSTREAM_PR.es.md`](docs/OMARCHY_UPSTREAM_PR.es.md) | Discusión de RFC / documentos de diseño en el Discord de Omarchy, canal `#omarchy-security` | Compartido para discusión |
+| 3 | **CLI `omarchy-sec` + servicio watcher** — motor de detección, puente a la API de Wazuh, unit systemd de usuario | **este repositorio** | Paquete AUR → `paru -S omarchy-sec` | Empaquetado en curso |
+
+> **El widget ya no vive en este repositorio.** Se extrajo para que el repo del plugin contenga únicamente QML, un manifiesto, un README y una licencia. El marketplace exige un repositorio público por plugin, y su escáner automático marca las capacidades `installer`, `service-management` y `package-manager` para revisión manual — que un script instalador y un unit de systemd en el mismo repo dispararían en cada release.
+
+Las tres piezas son utilizables por separado, con una sola dependencia entre ellas: **el widget lee su estado del CLI `omarchy-sec`.** Sin el CLI instalado, el escudo se muestra en su estado *desconocido* atenuado en lugar de reportar una protección que nunca midió.
 
 ---
 
@@ -30,7 +46,8 @@ Explorá las especificaciones técnicas completas, diagramas arquitectónicos y 
 | 🤖 **Respuesta con IA ("Call Agent")** | Conexión en tiempo real con la API REST de Wazuh (:55000) para triage y contención. | [**`docs/AUTONOMOUS_AI_INCIDENT_RESPONSE.es.md`**](docs/AUTONOMOUS_AI_INCIDENT_RESPONSE.es.md) |
 | 🧪 **Pipeline de Calidad DevSecOps** | 6 controles automáticos Pre-PR (SAST, IaC, SCA, Escaneo de Secretos, DAST). | [**`docs/DEVSECOPS_PIPELINE.es.md`**](docs/DEVSECOPS_PIPELINE.es.md) |
 | 🎯 **Matriz de Amenazas y MITRE** | Mapeo de vectores de ataque con la matriz MITRE ATT&CK. | [**`docs/THREAT_MODEL.md`**](docs/THREAT_MODEL.md) |
-| 🚀 **Guía de Publicación en Marketplace** | Pasos para publicar en el Marketplace oficial de Omarchy. | [**`docs/PUBLISHING.es.md`**](docs/PUBLISHING.es.md) |
+| 🧩 **Widget de Barra (repo aparte)** | El plugin de Quickshell: instalación, remoción, ajustes y estados. | [**`MAXI8594/omarchy-sec-plugin`**](https://github.com/MAXI8594/omarchy-sec-plugin) |
+| 🚀 **Guía de Publicación en Marketplace** | Requisitos reales del marketplace, reglas del escaneo de seguridad y checklist de envío. | [**`docs/PUBLISHING.es.md`**](docs/PUBLISHING.es.md) |
 
 ---
 
@@ -41,9 +58,9 @@ Explorá las especificaciones técnicas completas, diagramas arquitectónicos y 
 * 🏢 **Visibilidad de Flota Centralizada:** Permite que los equipos de SOC y proveedores de MDR (Azure Defender, Falcon Cloud, SentinelOne Management Console) monitoreen y protejan estaciones Omarchy.
 * 🛡️ **Motor Agnóstico Multi-Sensor:** Detecta y unifica automáticamente telemetría de **CrowdStrike Falcon, Microsoft Defender (MDE), SentinelOne, Cortex XDR y Wazuh**.
 * ⚡ **SOC Autohospedado en 1-Click (`./setup.sh`):** Despliega el stack completo de Wazuh XDR en Docker (en Modo Oscuro en `https://localhost:9001`) con enrolamiento automático del host.
-* 📊 **Widget Adaptativo en la Barra:** Muestra `Omarchy Sec` por defecto y adapta dinámicamente su título y botones al seleccionar sensores.
+* 📊 **Widget Adaptativo en la Barra:** Se distribuye por separado a través del [Omarchy Plugin Marketplace](https://plugins.omarchy.org/). Muestra `Omarchy Sec` por defecto y adapta dinámicamente su título y botones al seleccionar sensores; lee su estado del CLI `omarchy-sec`.
 * 🤖 **Respuesta Autónoma a Incidentes con IA ("Call Agent"):** Conecta la API REST de Wazuh (:55000) e historial de alertas con el agente de IA para investigación y contención activa.
-* 🔒 **Seguridad de Red Zero Trust:** Salida exclusiva (Egress TLS/443); cero puertos de entrada abiertos requeridos.
+* 🔒 **Seguridad de Red Zero Trust:** Telemetría de salida exclusiva (Egress TLS/443) hacia las nubes SOC corporativas; cero puertos de entrada expuestos a la red — el stack Wazuh autoalojado sólo escucha en `127.0.0.1` (ver [`docker-compose.yml`](docker/single-node/docker-compose.yml)).
 * 🧼 **100% Espacio de Usuario:** Cumple estrictamente con las directrices de Omarchy: jamás modifica `/usr/share/omarchy/`.
 
 ---
@@ -135,22 +152,57 @@ Al presionar **`[ 🤖 Call Agent ]`** en el panel o ejecutar `omarchy-sec agent
 
 ---
 
-## 🚀 Inicio Rápido y Referencia de Comandos
+## 🚀 Inicio Rápido
 
-### Instalación
+### 1. Instalar el CLI `omarchy-sec` (AUR)
+
+El CLI y su servicio watcher de usuario se empaquetan para el AUR. Una vez publicado el paquete:
+
 ```bash
-# Clonar el repositorio
-git clone https://github.com/MAXI8594/omarchy-sec.git
-cd omarchy-sec
+paru -S omarchy-sec        # o: yay -S omarchy-sec
+```
 
-# Ejecutar el instalador en 1-click
-./install.sh
+Después, habilitá el watcher en segundo plano para tu usuario:
 
-# (Opcional) Desplegar el stack completo de Wazuh con el asistente interactivo
-./setup.sh
+```bash
+systemctl --user enable --now omarchy-sec-watcher.service
+```
+
+> **El paquete AUR todavía se está preparando.** Hasta que esté publicado, instalá desde un checkout de git:
+> ```bash
+> git clone https://github.com/MAXI8594/omarchy-sec.git
+> cd omarchy-sec
+> ./install.sh
+> ```
+> `install.sh` escribe únicamente dentro de `~/.local/` y `~/.config/` — sin root, y jamás toca `/usr/share/omarchy/`, así que `omarchy update` no se ve afectado.
+
+### 2. Instalar el widget de barra (Marketplace)
+
+El widget vive en su propio repositorio y se instala con el CLI de plugins de Omarchy:
+
+```bash
+omarchy plugin add https://github.com/MAXI8594/omarchy-sec-plugin.git --enable
+```
+
+Para removerlo:
+
+```bash
+omarchy plugin disable io.github.maxi8594.omarchy-sec
+omarchy plugin remove  io.github.maxi8594.omarchy-sec
+```
+
+Instalá primero el paso 1: el widget es sólo una interfaz y muestra un escudo *desconocido* atenuado hasta que el CLI `omarchy-sec` esté presente para medir algo.
+
+### 3. (Opcional) Desplegar el SOC Wazuh autohospedado
+
+```bash
+./setup.sh                 # asistente interactivo de despliegue de Wazuh XDR (Docker)
 ```
 
 ### Comandos del CLI `omarchy-sec`
+
+Provistos por el paquete `omarchy-sec` del paso 1:
+
 ```bash
 omarchy-sec status                   # Muestra estado de protección y sensores (JSON)
 omarchy-sec onboard <vendor>         # Asistente interactivo de onboarding corporativo
@@ -167,6 +219,6 @@ omarchy-sec test                     # Ejecuta el pipeline completo de pruebas D
 
 **[📄 Descargar Informe Ejecutivo en PDF](docs/OMARCHY_SEC_ENTERPRISE_REPORT.pdf)**
 
-*Desarrollado con pasión para la comunidad de Omarchy por [Maximiliano Olivera (MAXI8594)](https://github.com/MAXI8594).*
+*Desarrollado con pasión para la comunidad de Omarchy por **Maximiliano Olivera** — [GitHub](https://github.com/MAXI8594) · [LinkedIn](https://www.linkedin.com/in/maximiliano-daniel-olivera/) · <maxioliverait@gmail.com>*
 
 </div>

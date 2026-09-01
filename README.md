@@ -10,9 +10,25 @@
 [![Report: PDF](https://img.shields.io/badge/Report-Download%20PDF-red.svg)](docs/OMARCHY_SEC_ENTERPRISE_REPORT.pdf)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[**🇪🇸 Leer en Español**](README.es.md) • [**📄 Executive PDF Report**](docs/OMARCHY_SEC_ENTERPRISE_REPORT.pdf) • [**📬 Upstream PR Proposals**](docs/OMARCHY_UPSTREAM_PR.md)
+[**🇪🇸 Leer en Español**](README.es.md) • [**🧩 Bar Widget Repo**](https://github.com/MAXI8594/omarchy-sec-plugin) • [**📄 Executive PDF Report**](docs/OMARCHY_SEC_ENTERPRISE_REPORT.pdf) • [**📬 Upstream PR Proposals**](docs/OMARCHY_UPSTREAM_PR.md)
 
 </div>
+
+---
+
+## 📦 One Project, Three Deliverables
+
+Following the split suggested by the Omarchy maintainer, Omarchy Sec ships as three independent pieces, each through the channel that fits it:
+
+| # | Deliverable | Lives in | Distributed via | Status |
+| :-- | :--- | :--- | :--- | :--- |
+| 1 | **Quickshell bar widget** — the shield in the bar and its inspection panel | [`MAXI8594/omarchy-sec-plugin`](https://github.com/MAXI8594/omarchy-sec-plugin) | [Omarchy Plugin Marketplace](https://plugins.omarchy.org/) → `omarchy plugin add` | Submission pending — see [`docs/PUBLISHING.md`](docs/PUBLISHING.md) |
+| 2 | **System config proposals** — `omarchy firewall`, SSH hardening, EDR hooks | [`docs/OMARCHY_UPSTREAM_PR.md`](docs/OMARCHY_UPSTREAM_PR.md) | RFC / design doc discussion in the Omarchy Discord, channel `#omarchy-security` | Shared for discussion |
+| 3 | **`omarchy-sec` CLI + watcher service** — detection engine, Wazuh API bridge, systemd user unit | **this repository** | AUR package → `paru -S omarchy-sec` | Packaging in progress |
+
+> **The widget no longer lives in this repository.** It was extracted so that the plugin repo contains nothing but QML, a manifest, a README and a license. The marketplace requires one public repository per plugin, and its automated scanner flags the `installer`, `service-management` and `package-manager` capabilities for manual review — which an installer script and a systemd unit sitting in the same repo would trigger on every release.
+
+The three pieces are independently usable, with one dependency between them: **the widget reads its state from the `omarchy-sec` CLI.** Without the CLI installed, the shield renders in its muted *unknown* state rather than reporting a protection status it never measured.
 
 ---
 
@@ -30,7 +46,8 @@ Explore the complete technical specifications, architectural blueprints, and ven
 | 🤖 **Autonomous AI Responder** | How the "Call Agent" connects to the Wazuh REST API (:55000) for forensic triage. | [**`docs/AUTONOMOUS_AI_INCIDENT_RESPONSE.md`**](docs/AUTONOMOUS_AI_INCIDENT_RESPONSE.md) |
 | 🧪 **DevSecOps Quality Gate** | 6 automated pre-PR quality checks (SAST, IaC, SCA, Secrets scanning, DAST). | [**`docs/DEVSECOPS_PIPELINE.md`**](docs/DEVSECOPS_PIPELINE.md) |
 | 🎯 **Threat Matrix & MITRE** | MITRE ATT&CK mapping for developer Linux endpoints. | [**`docs/THREAT_MODEL.md`**](docs/THREAT_MODEL.md) |
-| 🚀 **Marketplace Submission** | Guide for listing in the official Omarchy Plugin Marketplace. | [**`docs/PUBLISHING.md`**](docs/PUBLISHING.md) |
+| 🧩 **Bar Widget (separate repo)** | The Quickshell plugin itself: install/removal steps, settings and states. | [**`MAXI8594/omarchy-sec-plugin`**](https://github.com/MAXI8594/omarchy-sec-plugin) |
+| 🚀 **Marketplace Submission** | The real marketplace requirements, security scan rules and submission checklist. | [**`docs/PUBLISHING.md`**](docs/PUBLISHING.md) |
 
 ---
 
@@ -41,9 +58,9 @@ Explore the complete technical specifications, architectural blueprints, and ven
 * 🏢 **Central SOC Fleet Visibility:** Enables corporate SOCs and MDR providers (Azure Defender, Falcon Cloud, SentinelOne Management Console) to monitor and protect Omarchy workstations seamlessly.
 * 🛡️ **Agnostic Multi-Sensor Engine:** Auto-detects and aggregates telemetry from **CrowdStrike Falcon, Microsoft Defender (MDE), SentinelOne, Cortex XDR, and Wazuh**.
 * ⚡ **1-Click Self-Hosted SOC (`./setup.sh`):** Deploys a full-stack Wazuh XDR in Docker (in Dark Mode on `https://localhost:9001`) with host agent enrollment.
-* 📊 **Adaptive Quickshell Bar Widget:** Displays `Omarchy Sec` by default and dynamically adapts its title and action buttons when inspecting specific sensors.
+* 📊 **Adaptive Quickshell Bar Widget:** Distributed separately through the [Omarchy Plugin Marketplace](https://plugins.omarchy.org/). Displays `Omarchy Sec` by default and dynamically adapts its title and action buttons when inspecting specific sensors; it reads its state from the `omarchy-sec` CLI.
 * 🤖 **Autonomous AI Incident Responder ("Call Agent"):** Bridges live SIEM/EDR REST API data to the AI coding agent for instant forensic triage and defensive containment.
-* 🔒 **Zero Trust Network Security:** Egress-only TLS/443 telemetry; zero inbound listening ports required.
+* 🔒 **Zero Trust Network Security:** Egress-only TLS/443 telemetry to corporate SOC clouds; zero inbound ports exposed to the network — the self-hosted Wazuh SOC stack binds exclusively to `127.0.0.1` (see [`docker-compose.yml`](docker/single-node/docker-compose.yml)).
 * 🧼 **100% User-Space:** Strictly adheres to Omarchy rules—never touches `/usr/share/omarchy/`, ensuring safe updates via `omarchy update`.
 
 ---
@@ -137,22 +154,57 @@ The AI can immediately differentiate false positives, kill unauthorized reverse 
 
 ---
 
-## 🚀 Quickstart & CLI Reference
+## 🚀 Quickstart
 
-### Installation
+### 1. Install the `omarchy-sec` CLI (AUR)
+
+The CLI and its user-level watcher service are packaged for the AUR. Once the package is published:
+
 ```bash
-# Clone the repository
-git clone https://github.com/MAXI8594/omarchy-sec.git
-cd omarchy-sec
+paru -S omarchy-sec        # or: yay -S omarchy-sec
+```
 
-# Run the 1-click installer
-./install.sh
+Then enable the background watcher for your user:
 
-# (Optional) Run the interactive deployment wizard to launch Wazuh
-./setup.sh
+```bash
+systemctl --user enable --now omarchy-sec-watcher.service
+```
+
+> **The AUR package is still being prepared.** Until it lands, install from a git checkout:
+> ```bash
+> git clone https://github.com/MAXI8594/omarchy-sec.git
+> cd omarchy-sec
+> ./install.sh
+> ```
+> `install.sh` writes only inside `~/.local/` and `~/.config/` — no root, and it never touches `/usr/share/omarchy/`, so `omarchy update` is unaffected.
+
+### 2. Install the bar widget (Marketplace)
+
+The widget lives in its own repository and installs through the Omarchy plugin CLI:
+
+```bash
+omarchy plugin add https://github.com/MAXI8594/omarchy-sec-plugin.git --enable
+```
+
+To remove it:
+
+```bash
+omarchy plugin disable io.github.maxi8594.omarchy-sec
+omarchy plugin remove  io.github.maxi8594.omarchy-sec
+```
+
+Install step 1 first: the widget is a thin front end and shows a muted *unknown* shield until the `omarchy-sec` CLI is present to measure anything.
+
+### 3. (Optional) Deploy the self-hosted Wazuh SOC
+
+```bash
+./setup.sh                 # interactive Wazuh XDR deployment wizard (Docker)
 ```
 
 ### CLI Command Reference
+
+Provided by the `omarchy-sec` package from step 1:
+
 ```bash
 omarchy-sec status                   # Inspect protection status & active sensors (JSON)
 omarchy-sec onboard <vendor>         # Interactive enterprise EDR onboarding wizard
@@ -169,6 +221,6 @@ omarchy-sec test                     # Run the automated 6-tier DevSecOps test s
 
 **[📄 Download the Executive PDF Report](docs/OMARCHY_SEC_ENTERPRISE_REPORT.pdf)**
 
-*Developed with passion for the Omarchy community by [Maximiliano Olivera (MAXI8594)](https://github.com/MAXI8594).*
+*Developed with passion for the Omarchy community by **Maximiliano Olivera** — [GitHub](https://github.com/MAXI8594) · [LinkedIn](https://www.linkedin.com/in/maximiliano-daniel-olivera/) · <maxioliverait@gmail.com>*
 
 </div>

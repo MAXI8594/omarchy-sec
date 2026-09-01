@@ -16,29 +16,31 @@ This document exists because a design doc can be diffed, quoted by line, and arg
 
 ## Contents
 
-- [1. Summary](#1-summary)
+- [1. Summary](#1--summary)
   - [1.1 What this proposes](#11-what-this-proposes)
   - [1.2 What this does not propose](#12-what-this-does-not-propose)
-- [2. Problem statement](#2-problem-statement)
-- [3. Proposals](#3-proposals)
-  - [Proposal A — `omarchy firewall` CLI group](#proposal-a--omarchy-firewall-cli-group)
-  - [Proposal B — SSH daemon hardening drop-in](#proposal-b--ssh-daemon-hardening-drop-in)
-  - [Proposal C — Optional EDR telemetry hook and incident bridge](#proposal-c--optional-edr-telemetry-hook-and-incident-bridge)
-- [4. What already exists out-of-tree](#4-what-already-exists-out-of-tree)
-- [5. The DevSecOps pipeline behind this repo](#5-the-devsecops-pipeline-behind-this-repo)
-- [6. Open questions](#6-open-questions)
+- [2. Problem statement](#2--problem-statement)
+- [3. Proposals](#3--proposals)
+  - [Proposal A — `omarchy firewall` CLI group](#-proposal-a--omarchy-firewall-cli-group)
+  - [Proposal B — SSH daemon hardening drop-in](#-proposal-b--ssh-daemon-hardening-drop-in)
+  - [Proposal C — Optional EDR telemetry hook and incident bridge](#-proposal-c--optional-edr-telemetry-hook-and-incident-bridge)
+- [4. What already exists out-of-tree](#4--what-already-exists-out-of-tree)
+- [5. The DevSecOps pipeline behind this repo](#5--the-devsecops-pipeline-behind-this-repo)
+  - [5.1 Local pipeline — `tests/run_tests.sh`](#51-local-pipeline--testsrun_testssh)
+  - [5.2 CI pipeline — `.github/workflows/security-ci.yml`](#52-ci-pipeline--githubworkflowssecurity-ciyml)
+- [6. Open questions](#6--open-questions)
 
 ---
 
-## 1. Summary
+## 1. 🧭 Summary
 
 ### 1.1 What this proposes
 
 Three additions to Omarchy, in descending order of how confident I am that they belong upstream:
 
-1. **[`omarchy firewall`](#proposal-a--omarchy-firewall-cli-group)** — a small CLI group wrapping the UFW commands developers actually run, so opening a dev port does not mean dropping to raw `ufw`/`iptables` syntax.
-2. **[SSH daemon hardening](#proposal-b--ssh-daemon-hardening-drop-in)** — an sshd drop-in that disables password authentication, applied as part of the existing SSH setup path that already installs public keys.
-3. **[EDR telemetry hook](#proposal-c--optional-edr-telemetry-hook-and-incident-bridge)** — an opt-in recipe and status widget for users whose employer requires an endpoint agent, plus a documented hook so a high-severity alert can hand its context to the local coding agent.
+1. **[`omarchy firewall`](#-proposal-a--omarchy-firewall-cli-group)** — a small CLI group wrapping the UFW commands developers actually run, so opening a dev port does not mean dropping to raw `ufw`/`iptables` syntax.
+2. **[SSH daemon hardening](#-proposal-b--ssh-daemon-hardening-drop-in)** — an sshd drop-in that disables password authentication, applied as part of the existing SSH setup path that already installs public keys.
+3. **[EDR telemetry hook](#-proposal-c--optional-edr-telemetry-hook-and-incident-bridge)** — an opt-in recipe and status widget for users whose employer requires an endpoint agent, plus a documented hook so a high-severity alert can hand its context to the local coding agent.
 
 Proposal A is a convenience wrapper over an existing default. Proposal B changes a security default. Proposal C is opt-in and adds no code paths for users who never enable it. They should be discussed and accepted or rejected separately.
 
@@ -56,7 +58,7 @@ Stating the negative scope explicitly, because most of the objections I expect a
 
 ---
 
-## 2. Problem statement
+## 2. 🎯 Problem statement
 
 Omarchy targets developers, and a developer workstation has an unusual threat profile compared with a general-purpose desktop:
 
@@ -74,11 +76,11 @@ The gap this RFC addresses is narrow: **give the user a straightforward way to m
 
 ---
 
-## 3. Proposals
+## 3. 📬 Proposals
 
 Each proposal below has its own heading anchor so it can be linked and argued with on its own.
 
-### Proposal A — `omarchy firewall` CLI group
+### 🔥 Proposal A — `omarchy firewall` CLI group
 
 #### A. What changes
 
@@ -116,7 +118,7 @@ Delete the command group. It writes no state of its own; any rules a user create
 
 ---
 
-### Proposal B — SSH daemon hardening drop-in
+### 🔐 Proposal B — SSH daemon hardening drop-in
 
 #### B. What changes
 
@@ -161,7 +163,7 @@ A single file, in a drop-in directory, with a numeric prefix that makes its prec
 
 ---
 
-### Proposal C — Optional EDR telemetry hook and incident bridge
+### 🤖 Proposal C — Optional EDR telemetry hook and incident bridge
 
 #### C. What changes
 
@@ -204,7 +206,30 @@ Remove the widget from the bar; remove the recipe. Since nothing is enabled by d
 
 ---
 
-## 4. What already exists out-of-tree
+## 4. ⚙️ What already exists out-of-tree
+
+```
+   sensors on the box              you                 optional
+  ┌──────────────────┐        ┌───────────┐        ┌──────────────┐
+  │ Wazuh · Falcon   │        │  the bar  │        │ corporate    │
+  │ Cortex · S1      │──┐  ┌─▶│  🛡️ green │        │ SOC / MDR    │
+  │ Defender · Falco │  │  │  └───────────┘        └──────▲───────┘
+  │ auditd           │  │  │                              │
+  └──────────────────┘  │  │                       outbound TLS only
+                        ▼  │                              │
+                  ┌───────────────┐                       │
+                  │ omarchy-sec   │───────────────────────┘
+                  │   -detect     │  (vendor agent's own channel)
+                  └───────┬───────┘
+                          │  rule level >= 10
+                          ▼
+                  ┌───────────────┐
+                  │ omarchy-agent │  triage, in your terminal
+                  └───────────────┘
+
+  every port of the self-hosted stack binds 127.0.0.1 — nothing on the LAN
+```
+
 
 For reviewers who want to look at running code before deciding whether the hooks are worth having. All of this lives in [`MAXI8594/omarchy-sec`](https://github.com/MAXI8594/omarchy-sec) and is installed by the user, separately from Omarchy.
 
@@ -222,7 +247,7 @@ Known rough edges, stated here rather than discovered by a reviewer: the watcher
 
 ---
 
-## 5. The DevSecOps pipeline behind this repo
+## 5. 🧪 The DevSecOps pipeline behind this repo
 
 This section describes what the pipeline **actually runs**, including what it does not catch. An earlier summary of this material described the pipeline as fully passing SAST, IaC, secrets, SCA, and DAST; that was not accurate, and the accurate version is below.
 
@@ -263,7 +288,7 @@ So the genuinely enforcing gates today are ShellCheck, Gitleaks, and Semgrep. Ev
 
 ---
 
-## 6. Open questions
+## 6. ❓ Open questions
 
 Where I want the Omarchy maintainers' and community's judgment, roughly in the order I care about the answers:
 

@@ -16,21 +16,23 @@ Este documento existe porque un documento de diseño se puede diffear, citar por
 
 ## Contenido
 
-- [1. Resumen](#1-resumen)
+- [1. Resumen](#1--resumen)
   - [1.1 Qué se propone](#11-qué-se-propone)
   - [1.2 Qué NO se propone](#12-qué-no-se-propone)
-- [2. Planteo del problema](#2-planteo-del-problema)
-- [3. Propuestas](#3-propuestas)
-  - [Propuesta A — Grupo CLI `omarchy firewall`](#propuesta-a--grupo-cli-omarchy-firewall)
-  - [Propuesta B — Drop-in de hardening del demonio SSH](#propuesta-b--drop-in-de-hardening-del-demonio-ssh)
-  - [Propuesta C — Hook opcional de telemetría EDR y puente de incidentes](#propuesta-c--hook-opcional-de-telemetría-edr-y-puente-de-incidentes)
-- [4. Qué existe ya fuera del árbol](#4-qué-existe-ya-fuera-del-árbol)
-- [5. El pipeline DevSecOps de este repositorio](#5-el-pipeline-devsecops-de-este-repositorio)
-- [6. Preguntas abiertas](#6-preguntas-abiertas)
+- [2. Planteo del problema](#2--planteo-del-problema)
+- [3. Propuestas](#3--propuestas)
+  - [Propuesta A — Grupo CLI `omarchy firewall`](#-propuesta-a--grupo-cli-omarchy-firewall)
+  - [Propuesta B — Drop-in de hardening del demonio SSH](#-propuesta-b--drop-in-de-hardening-del-demonio-ssh)
+  - [Propuesta C — Hook opcional de telemetría EDR y puente de incidentes](#-propuesta-c--hook-opcional-de-telemetría-edr-y-puente-de-incidentes)
+- [4. Qué existe ya fuera del árbol](#4--qué-existe-ya-fuera-del-árbol)
+- [5. El pipeline DevSecOps de este repositorio](#5--el-pipeline-devsecops-de-este-repositorio)
+  - [5.1 Pipeline local — `tests/run_tests.sh`](#51-pipeline-local--testsrun_testssh)
+  - [5.2 Pipeline de CI — `.github/workflows/security-ci.yml`](#52-pipeline-de-ci--githubworkflowssecurity-ciyml)
+- [6. Preguntas abiertas](#6--preguntas-abiertas)
 
 ---
 
-## 1. Resumen
+## 1. 🧭 Resumen
 
 ### 1.1 Qué se propone
 
@@ -56,7 +58,7 @@ Aclaro el alcance negativo de forma explícita, porque la mayoría de las objeci
 
 ---
 
-## 2. Planteo del problema
+## 2. 🎯 Planteo del problema
 
 Omarchy apunta a desarrolladores, y una estación de trabajo de desarrollo tiene un perfil de amenaza inusual comparada con un escritorio de propósito general:
 
@@ -74,11 +76,11 @@ La brecha que este RFC ataca es acotada: **darle al usuario una forma directa de
 
 ---
 
-## 3. Propuestas
+## 3. 📬 Propuestas
 
 Cada propuesta tiene su propio ancla de encabezado para poder enlazarla y discutirla por separado.
 
-### Propuesta A — Grupo CLI `omarchy firewall`
+### 🔥 Propuesta A — Grupo CLI `omarchy firewall`
 
 #### A. Qué cambia
 
@@ -116,7 +118,7 @@ Se borra el grupo de comandos. No escribe estado propio; las reglas que el usuar
 
 ---
 
-### Propuesta B — Drop-in de hardening del demonio SSH
+### 🔐 Propuesta B — Drop-in de hardening del demonio SSH
 
 #### B. Qué cambia
 
@@ -161,7 +163,7 @@ Un solo archivo, en un directorio drop-in, con un prefijo numérico que hace exp
 
 ---
 
-### Propuesta C — Hook opcional de telemetría EDR y puente de incidentes
+### 🤖 Propuesta C — Hook opcional de telemetría EDR y puente de incidentes
 
 #### C. Qué cambia
 
@@ -204,7 +206,30 @@ Se saca el widget de la barra; se saca la receta. Como nada está habilitado por
 
 ---
 
-## 4. Qué existe ya fuera del árbol
+## 4. ⚙️ Qué existe ya fuera del árbol
+
+```
+   sensores en la maquina           vos                opcional
+  ┌──────────────────┐        ┌───────────┐        ┌──────────────┐
+  │ Wazuh · Falcon   │        │  la barra │        │ SOC / MDR    │
+  │ Cortex · S1      │──┐  ┌─▶│  🛡️ verde │        │ corporativo  │
+  │ Defender · Falco │  │  │  └───────────┘        └──────▲───────┘
+  │ auditd           │  │  │                              │
+  └──────────────────┘  │  │                        solo TLS saliente
+                        ▼  │                              │
+                  ┌───────────────┐                       │
+                  │ omarchy-sec   │───────────────────────┘
+                  │   -detect     │  (canal propio del agente del fabricante)
+                  └───────┬───────┘
+                          │  regla nivel >= 10
+                          ▼
+                  ┌───────────────┐
+                  │ omarchy-agent │  triage, en tu terminal
+                  └───────────────┘
+
+  todos los puertos del stack self-hosted bindean 127.0.0.1 — nada en la LAN
+```
+
 
 Para quien quiera mirar código funcionando antes de decidir si los hooks valen la pena. Todo esto vive en [`MAXI8594/omarchy-sec`](https://github.com/MAXI8594/omarchy-sec) y lo instala el usuario, por separado de Omarchy.
 
@@ -222,7 +247,7 @@ Asperezas conocidas, declaradas acá en vez de que las descubra quien revise: el
 
 ---
 
-## 5. El pipeline DevSecOps de este repositorio
+## 5. 🧪 El pipeline DevSecOps de este repositorio
 
 Esta sección describe lo que el pipeline **realmente ejecuta**, incluyendo lo que no detecta. Un resumen anterior de este material describía el pipeline como aprobado al 100% en SAST, IaC, secretos, SCA y DAST; eso no era exacto, y la versión exacta es la que sigue.
 
@@ -263,7 +288,7 @@ Así que las compuertas que hoy realmente hacen cumplir algo son ShellCheck, Git
 
 ---
 
-## 6. Preguntas abiertas
+## 6. ❓ Preguntas abiertas
 
 Dónde quiero el criterio de los mantenedores y de la comunidad de Omarchy, más o menos en el orden en que me importan las respuestas:
 

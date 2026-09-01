@@ -40,6 +40,8 @@ Explore the complete technical specifications, architectural blueprints, and ven
 | :--- | :--- | :--- |
 | 🏛️ **Architecture & Telemetry** | Complete technical specification of Linux kernel probes, eBPF, and SOC streaming. | [**`docs/ARCHITECTURE.md`**](docs/ARCHITECTURE.md) |
 | 🎯 **Why Omarchy Needs EDR** | The modern developer workstation threat model (supply chain, dotfile tampering). | [**`docs/WHY_OMARCHY_NEEDS_EDR.md`**](docs/WHY_OMARCHY_NEEDS_EDR.md) |
+| 📄 **RFC / Proposal (Markdown)** | The full proposal as a reviewable document — three separately arguable proposals plus the real DevSecOps pipeline. | [**`docs/PROPOSAL.md`**](docs/PROPOSAL.md) |
+| 💬 **Discord post** | The same RFC cut into paste-ready `#omarchy-security` messages, each under Discord's 2000-char cap. | [**`docs/DISCORD_POST.md`**](docs/DISCORD_POST.md) |
 | 📬 **Upstream PR Proposals (DHH)** | Concrete proposals for `omarchy firewall`, SSH hardening, and EDR agent hooks. | [**`docs/OMARCHY_UPSTREAM_PR.md`**](docs/OMARCHY_UPSTREAM_PR.md) |
 | 🏢 **Enterprise EDR Playbooks** | Step-by-step corporate guides for **CrowdStrike, Defender, SentinelOne, Cortex, Wazuh**. | [**`docs/ENTERPRISE_EDR_GUIDE.md`**](docs/ENTERPRISE_EDR_GUIDE.md) |
 | 🔒 **Zero Trust Microsegmentation** | Network hardening, outbound TLS/443 telemetry, and zero open inbound ports. | [**`docs/ZERO_TRUST_MICROSEGMENTATION.md`**](docs/ZERO_TRUST_MICROSEGMENTATION.md) |

@@ -39,15 +39,30 @@ else
   }
 fi
 
-# 3. Instalar y habilitar servicio systemd del observador
-# El unit versionado apunta a /usr/bin porque es el que empaqueta el AUR
-# (ver packaging/aur/). Esta instalacion desde el checkout deja los binarios en
-# ~/.local/bin, asi que reescribimos el ExecStart al copiarlo.
-echo "[*] Configurando servicio systemd de usuario (omarchy-sec-watcher.service)..."
-sed "s|^ExecStart=.*|ExecStart=$TARGET_BIN/omarchy-sec-watcher|" \
-  "$BASE_DIR/systemd/omarchy-sec-watcher.service" > "$TARGET_SYSTEMD/omarchy-sec-watcher.service"
-systemctl --user daemon-reload
-systemctl --user enable --now omarchy-sec-watcher.service || true
+# 3. Servicio systemd del observador
+# El paquete instala su unit en /usr/lib/systemd/user/. Un unit propio en
+# ~/.config/systemd/user/ lo TAPA, y como apunta a ~/.local/bin el servicio
+# seguiria corriendo la copia del checkout aun despues de un 'pacman -Syu'.
+# Dos copias del mismo binario siempre terminan divergiendo, y en una herramienta
+# de seguridad esa divergencia es silenciosa.
+PKG_UNIT="/usr/lib/systemd/user/omarchy-sec-watcher.service"
+USER_UNIT="$TARGET_SYSTEMD/omarchy-sec-watcher.service"
+
+if [ -f "$PKG_UNIT" ]; then
+  echo "[*] El paquete ya provee el servicio; no se instala una copia de usuario."
+  if [ -f "$USER_UNIT" ]; then
+    echo "    Quitando el unit de usuario que tapaba al del paquete..."
+    rm -f "$USER_UNIT"
+  fi
+  systemctl --user daemon-reload
+  systemctl --user enable --now omarchy-sec-watcher.service || true
+else
+  echo "[*] Configurando servicio systemd de usuario (omarchy-sec-watcher.service)..."
+  sed "s|^ExecStart=.*|ExecStart=$TARGET_BIN/omarchy-sec-watcher|" \
+    "$BASE_DIR/systemd/omarchy-sec-watcher.service" > "$USER_UNIT"
+  systemctl --user daemon-reload
+  systemctl --user enable --now omarchy-sec-watcher.service || true
+fi
 
 
 echo ""
